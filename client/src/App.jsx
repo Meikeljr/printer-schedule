@@ -18,7 +18,10 @@ import {
   Database,
   User,
   Building,
-  Droplet
+  Droplet,
+  Lightbulb,
+  Filter,
+  Info
 } from 'lucide-react';
 
 export default function App() {
@@ -388,9 +391,9 @@ export default function App() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="all">Semua Status Tenggat</option>
-              <option value="overdue">🔴 Perlu Refill (&ge; 60 Hari)</option>
-              <option value="warning">🟡 Mendekati (45-59 Hari)</option>
-              <option value="ok">🟢 Aman (&lt; 45 Hari)</option>
+              <option value="overdue">Perlu Refill (&ge; 60 Hari)</option>
+              <option value="warning">Mendekati (45-59 Hari)</option>
+              <option value="ok">Aman (&lt; 45 Hari)</option>
             </select>
 
             <button
@@ -663,10 +666,10 @@ export default function App() {
                 />
               </div>
 
-              <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', fontSize: '0.825rem' }}>
-                💡 <strong>Petunjuk Sampel File Excel:</strong><br />
+              <div style={{ marginTop: '16px', padding: '12px 14px', background: 'var(--accent-blue-light)', border: '1px solid var(--accent-blue-border)', borderRadius: '12px', fontSize: '0.825rem', color: 'var(--text-main)' }}>
+                <Lightbulb size={16} style={{ color: 'var(--accent-blue)', verticalAlign: 'middle', marginRight: '6px' }} /> <strong>Petunjuk Sampel File Excel:</strong><br />
                 File sampel telah disediakan di folder sistem Anda: <br />
-                <code>C:\Users\Meikel\Documents\Printer\sample_printer_data.xlsx</code>
+                <code style={{ background: '#ffffff', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'inline-block', marginTop: '4px' }}>C:\Users\Meikel\Documents\Printer\sample_printer_data.xlsx</code>
               </div>
 
               <div className="modal-actions">
