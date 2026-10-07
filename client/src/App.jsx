@@ -18,10 +18,7 @@ import {
   Database,
   User,
   Building,
-  Droplet,
-  Lightbulb,
-  Filter,
-  Info
+  Droplet
 } from 'lucide-react';
 
 export default function App() {
@@ -316,7 +313,7 @@ export default function App() {
         <div className="stat-card" onClick={() => setStatusFilter('overdue')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
             <h3>Perlu Refill (&ge; 60 Hari)</h3>
-            <div className="stat-value" style={{ color: '#f43f5e' }}>{stats.overdue}</div>
+            <div className="stat-value" style={{ color: '#be123c' }}>{stats.overdue}</div>
           </div>
           <div className="stat-icon-bg icon-red">
             <AlertTriangle size={24} />
@@ -326,7 +323,7 @@ export default function App() {
         <div className="stat-card" onClick={() => setStatusFilter('warning')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
             <h3>Mendekati (45-59 Hari)</h3>
-            <div className="stat-value" style={{ color: '#f59e0b' }}>{stats.warning}</div>
+            <div className="stat-value" style={{ color: '#b45309' }}>{stats.warning}</div>
           </div>
           <div className="stat-icon-bg icon-amber">
             <Clock size={24} />
@@ -336,7 +333,7 @@ export default function App() {
         <div className="stat-card" onClick={() => setStatusFilter('ok')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
             <h3>Kondisi Aman (&lt; 45 Hari)</h3>
-            <div className="stat-value" style={{ color: '#10b981' }}>{stats.ok}</div>
+            <div className="stat-value" style={{ color: '#047857' }}>{stats.ok}</div>
           </div>
           <div className="stat-icon-bg icon-emerald">
             <CheckCircle size={24} />
@@ -440,19 +437,19 @@ export default function App() {
                   const warnaClass = `ink-${item.warna.toLowerCase().replace('cyan', 'biru').replace('yellow', 'kuning')}`;
                   return (
                     <tr key={item.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td style={{ fontWeight: 700, color: '#334155' }}>{idx + 1}</td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                          <User size={16} style={{ color: 'var(--accent-blue)' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: '#0f172a' }}>
+                          <User size={16} style={{ color: '#1d4ed8' }} />
                           {item.nama}
                         </div>
                       </td>
                       <td>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155', fontWeight: 500 }}>
                           <Building size={15} /> {item.departement}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 600, color: '#f8fafc' }}>{item.printer}</td>
+                      <td style={{ fontWeight: 700, color: '#0f172a' }}>{item.printer}</td>
                       <td>
                         <span className={`ink-badge ${warnaClass}`}>
                           <span className="ink-dot"></span>
@@ -460,13 +457,13 @@ export default function App() {
                         </span>
                       </td>
                       <td>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#0f172a' }}>
+                          <Calendar size={14} style={{ color: '#1d4ed8' }} />
                           {item.tanggal_terakhir}
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: '0.875rem', color: '#334155', fontWeight: 600 }}>
                           {item.tgl_tenggat}
                         </span>
                       </td>
@@ -666,10 +663,10 @@ export default function App() {
                 />
               </div>
 
-              <div style={{ marginTop: '16px', padding: '12px 14px', background: 'var(--accent-blue-light)', border: '1px solid var(--accent-blue-border)', borderRadius: '12px', fontSize: '0.825rem', color: 'var(--text-main)' }}>
-                <Lightbulb size={16} style={{ color: 'var(--accent-blue)', verticalAlign: 'middle', marginRight: '6px' }} /> <strong>Petunjuk Sampel File Excel:</strong><br />
+              <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', fontSize: '0.825rem' }}>
+                💡 <strong>Petunjuk Sampel File Excel:</strong><br />
                 File sampel telah disediakan di folder sistem Anda: <br />
-                <code style={{ background: '#ffffff', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', display: 'inline-block', marginTop: '4px' }}>C:\Users\Meikel\Documents\Printer\sample_printer_data.xlsx</code>
+                <code>C:\Users\Meikel\Documents\Printer\sample_printer_data.xlsx</code>
               </div>
 
               <div className="modal-actions">
