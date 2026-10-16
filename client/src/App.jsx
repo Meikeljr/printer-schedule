@@ -561,7 +561,7 @@ export default function App() {
                   {uploadFile ? uploadFile.name : 'Klik untuk memilih file Excel (.xlsx / .xls)'}
                 </p>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Daftar printer: <strong>Nama, Departement, Printer</strong> · Data isi ulang: <strong>ID, Nama, Departement, Printer, Jenis Tinta, Tanggal</strong>
+                  Data isi ulang: <strong>ID, Nama, Departement, Printer, Jenis Tinta, Tanggal</strong>
                 </span>
                 <input
                   type="file"
@@ -573,7 +573,7 @@ export default function App() {
               </div>
 
               <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', fontSize: '0.825rem' }}>
-                💡 Kolom <strong>Printer</strong> berisi kode jenis tinta (003 atau 664), sedangkan <strong>Jenis Tinta</strong> berisi warna (Hitam, Magenta, Biru, atau Kuning). Kolom <strong>ID</strong> opsional dan tidak diimpor.
+                💡 Impor hanya memperbarui tanggal dan riwayat printer yang sudah terdaftar; baris yang tidak cocok atau tidak memiliki warna akan dilewati. Kolom <strong>Printer</strong> berisi kode jenis tinta (003 atau 664), sedangkan <strong>Jenis Tinta</strong> berisi warna (Hitam, Magenta, Biru, atau Kuning). Kolom <strong>ID</strong> opsional dan tidak diimpor.
               </div>
 
               <div className="modal-actions">

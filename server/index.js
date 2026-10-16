@@ -283,8 +283,30 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
     const sheet = workbook.Sheets[sheetName];
     const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-    let countAdded = 0;
-    const printerRoster = [];
+    let countUpdated = 0;
+    let countSkipped = 0;
+    const existingRows = await db.query(
+      'SELECT id, nama, departement, printer, warna FROM printer_refills'
+    );
+    const refillRowsByKey = new Map();
+    const createRefillKey = (nama, departement, printer, warna) => [
+      nama,
+      departement,
+      normalizeInkType(printer),
+      warna,
+    ].map(value => String(value || '').trim().toLowerCase()).join('|');
+
+    for (const existingRow of existingRows) {
+      const key = createRefillKey(
+        existingRow.nama,
+        existingRow.departement,
+        existingRow.printer,
+        existingRow.warna
+      );
+      const matchingRows = refillRowsByKey.get(key) || [];
+      matchingRows.push(existingRow);
+      refillRowsByKey.set(key, matchingRows);
+    }
 
     for (const row of rawData) {
       // Cari nama kolom yang cocok (toleransi huruf besar/kecil & variasi nama kolom)
@@ -322,47 +344,43 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
       const rawTanggal = findVal(['tanggal', 'date', 'tanggal_terakhir', 'tgl_isi_ulang', 'tgl terakhir']);
       const catatan = findVal(['catatan', 'notes', 'keterangan']) || 'Diimpor dari Excel';
 
-      if (nama && printer && !warna) {
-        printerRoster.push({ nama, departement: departement || 'General', printer });
-      } else if (nama && printer && warna) {
-        const tanggal = parseExcelDate(rawTanggal);
-        const mode = db.getMode();
-        let insertId = null;
-
-        if (mode === 'pg') {
-          const resIns = await db.query(
-            `INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-            [nama, departement || 'General', printer, warna, tanggal, catatan]
-          );
-          insertId = resIns[0].id;
-        } else {
-          const resIns = await db.query(
-            `INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [nama, departement || 'General', printer, warna, tanggal, catatan]
-          );
-          insertId = resIns[0].id;
-        }
-
-        await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
-          insertId,
-          nama,
-          tanggal,
-        ]);
-        countAdded++;
+      if (!nama || !printer || !warna) {
+        countSkipped++;
+        continue;
       }
-    }
 
-    countAdded += await db.syncPrinterRoster(printerRoster);
+      const matchingRows = refillRowsByKey.get(
+        createRefillKey(nama, departement || 'General', printer, warna)
+      );
+      if (!matchingRows || matchingRows.length === 0) {
+        countSkipped++;
+        continue;
+      }
+
+      const tanggal = parseExcelDate(rawTanggal);
+      for (const matchingRow of matchingRows) {
+        await db.query(
+          `UPDATE printer_refills
+           SET tanggal_terakhir = $1, catatan = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [tanggal, catatan, matchingRow.id]
+        );
+        await db.query(
+          'INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)',
+          [matchingRow.id, nama, tanggal]
+        );
+      }
+      countUpdated++;
+    }
 
     // Hapus file temporary
     fs.unlinkSync(filePath);
 
     res.json({
       success: true,
-      message: `Berhasil mengimpor ${countAdded} data dari file Excel!`,
-      count: countAdded,
+      message: `Berhasil memperbarui tanggal isi ulang ${countUpdated} data. ${countSkipped} baris dilewati karena tidak cocok dengan data printer yang sudah terdaftar atau tidak memiliki warna.`,
+      count: countUpdated,
+      skipped: countSkipped,
     });
   } catch (err) {
     console.error('Error import excel:', err);

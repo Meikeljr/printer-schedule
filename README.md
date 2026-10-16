@@ -15,7 +15,7 @@ Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL** untuk mencata
 1. **Jumlah Hari Sejak Isi Ulang**: Menampilkan jumlah hari sejak tinta terakhir diisi ulang, tanpa pengingat atau tenggat.
 2. **Daftar Pemilik Printer**: Daftar nama, departemen, jenis tinta, serta warna Hitam, Magenta, Biru, dan Kuning sesuai `Data_printer.xlsx` dimuat saat backend berjalan; tanggal awal kosong sampai tombol **"Isi Ulang"** ditekan.
 3. **Pembaruan Isi Ulang Cepat**: Tombol **"Isi Ulang"** memperbarui tanggal ke hari ini dan mencatat riwayat.
-4. **Impor Data Excel**: Pengunggahan data pengisian dengan format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`, atau data roster tanpa warna/tanggal.
+4. **Impor Data Excel**: Pengunggahan data pengisian dengan format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`; impor hanya memperbarui tanggal dan riwayat data printer yang sudah terdaftar, tidak menambahkan nama/printer baru. Baris roster tanpa warna atau data yang tidak cocok akan dilewati.
 5. **Ekspor Laporan Excel**: Mengunduh catatan pengisian dan jumlah hari sejak pengisian terakhir dalam format `.xlsx`.
 6. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, dan Warna Tinta.
 7. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
@@ -66,7 +66,7 @@ C:\Users\Meikel\Documents\Printer\Data_printer.xlsx
 ```
 Roster disimpan di `server/printer_roster.json` dan diselaraskan otomatis ketika backend dijalankan. Setiap printer baru ditampilkan tanpa tanggal isi ulang sampai tombol **Isi Ulang** ditekan. Untuk menambahkan pemilik printer baru, tombol **Tambah Printer** tetap tersedia.
 
-File aktivitas isi ulang dengan kolom `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal` juga dapat diimpor; kolom `Printer` berisi kode tinta dan `Jenis Tinta` berisi warna.
+File aktivitas isi ulang dengan kolom `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal` dapat diimpor; kolom `Printer` berisi kode tinta dan `Jenis Tinta` berisi warna. Impor mencocokkan nama, departemen, printer, dan warna dengan baris yang sudah ada lalu memperbarui tanggal terakhir serta riwayat. Nama/printer yang belum terdaftar tidak dibuat otomatis oleh impor.
 
 ---
 
