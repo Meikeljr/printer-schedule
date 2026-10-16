@@ -487,6 +487,11 @@ body {
   background: #dbeafe;
 }
 
+.upload-dropzone:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
 .upload-icon {
   width: 48px;
   height: 48px;
@@ -652,7 +657,7 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 360px);
   gap: 16px;
   margin-bottom: 22px;
 }
@@ -678,10 +683,6 @@ body {
 }
 
 .stat-icon-blue { color: #1d4ed8; background: #eff6ff; }
-.stat-icon-red { color: #b91c1c; background: #fef2f2; }
-.stat-icon-amber { color: #a16207; background: #fefce8; }
-.stat-icon-green { color: #047857; background: #ecfdf5; }
-
 .stat-card p {
   margin: 0 0 2px;
   color: #475569;
@@ -779,10 +780,7 @@ body {
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
-.color-chip.status-due { box-shadow: inset 0 0 0 1px #dc2626; }
-.color-chip.status-unfilled { border-style: dashed; }
-
-.status-summary {
+.refill-age-summary {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -791,9 +789,7 @@ body {
   white-space: nowrap;
 }
 
-.summary-due { color: #b91c1c; }
-.summary-unfilled { color: #a16207; }
-.summary-scheduled { color: #047857; }
+.refill-age-summary strong { color: #334155; }
 
 .action-group {
   display: flex;
@@ -850,18 +846,6 @@ body {
   margin-bottom: 12px;
 }
 
-.status-pill {
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 750;
-  white-space: nowrap;
-}
-
-.status-pill-due { color: #991b1b; background: #fee2e2; }
-.status-pill-unfilled { color: #854d0e; background: #fef3c7; }
-.status-pill-scheduled { color: #065f46; background: #d1fae5; }
-
 .color-detail-data {
   display: grid;
   gap: 7px;
@@ -909,7 +893,6 @@ body {
 }
 
 @media (max-width: 1100px) {
-  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card-header-tools { align-items: stretch; }
   .filter-group { justify-content: flex-start; }
 }
@@ -967,8 +950,8 @@ body {
   }
   .custom-table tr.group-row td:nth-child(3)::before { content: "Departemen"; }
   .custom-table tr.group-row td:nth-child(4)::before { content: "Jenis tinta"; }
-  .custom-table tr.group-row td:nth-child(5)::before { content: "Status warna"; }
-  .custom-table tr.group-row td:nth-child(6)::before { content: "Ringkasan"; }
+  .custom-table tr.group-row td:nth-child(5)::before { content: "Warna tinta"; }
+  .custom-table tr.group-row td:nth-child(6)::before { content: "Hari sejak isi ulang"; }
   .custom-table tr.group-row td:nth-child(7)::before { content: "Aksi"; }
   .custom-table tr.group-row td:nth-child(5),
   .custom-table tr.group-row td:nth-child(6),

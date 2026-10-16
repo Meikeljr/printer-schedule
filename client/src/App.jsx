@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Printer,
-  Calendar,
   Plus,
   FileSpreadsheet,
   Download,
@@ -12,12 +11,9 @@ import {
   UploadCloud,
   History,
   X,
-  Database,
   User,
   Building,
-  Droplet,
   Clock3,
-  CircleCheck,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -47,27 +43,14 @@ function parseLocalDate(value) {
   return new Date(year, month - 1, day);
 }
 
-function addCalendarMonths(value, months = 2) {
-  const date = parseLocalDate(value);
-  if (!date) return null;
-  const day = date.getDate();
-  date.setDate(1);
-  date.setMonth(date.getMonth() + months);
-  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  date.setDate(Math.min(day, lastDay));
-  return date;
-}
-
-function getInkStatus(item, today = new Date()) {
-  if (!item.tanggal_terakhir) return 'unfilled';
-  const reminderDate = addCalendarMonths(item.tanggal_terakhir);
-  if (!reminderDate) return 'unfilled';
+function getDaysSinceRefill(value, today = new Date()) {
+  const lastDate = parseLocalDate(value);
+  if (!lastDate) return null;
   const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  return currentDate >= reminderDate ? 'due' : 'scheduled';
+  return Math.floor((currentDate.getTime() - lastDate.getTime()) / 86400000);
 }
 
 function formatLocalDate(date) {
-  if (!date) return '';
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
@@ -83,14 +66,12 @@ export default function App() {
   const [refills, setRefills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [dbMode, setDbMode] = useState('');
 
   // Filters
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState('all');
   const [printerFilter, setPrinterFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -121,7 +102,7 @@ export default function App() {
   const fileInputRef = useRef(null);
 
   // Fetch Data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/refills');
@@ -129,7 +110,6 @@ export default function App() {
 
       if (response.ok && resData.success) {
         setRefills(resData.data);
-        setDbMode(resData.dbMode);
         setLoadError('');
       } else {
         throw new Error(resData.message || 'Gagal mengambil data printer.');
@@ -140,11 +120,26 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!showFormModal && !showImportModal && !showHistoryModal && !refillItem) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      setShowFormModal(false);
+      setShowImportModal(false);
+      setShowHistoryModal(false);
+      setRefillItem(null);
+    };
+
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [showFormModal, showImportModal, showHistoryModal, refillItem]);
 
   // Handle Create / Update Data
   const handleSubmitForm = async (e) => {
@@ -174,7 +169,7 @@ export default function App() {
   };
 
   // Quick Refill Date Update to Today
-  const handleQuickRefill = async (item) => {
+  const handleQuickRefill = (item) => {
     setRefillItem(item);
     setRefillDate(getTodayDate());
   };
@@ -190,7 +185,6 @@ export default function App() {
         body: JSON.stringify({
           ...refillItem,
           tanggal_terakhir: refillDate,
-          catatan: `Diisi ulang pada ${refillDate}`,
         }),
       });
       const data = await response.json();
@@ -321,19 +315,12 @@ export default function App() {
     const matchesPrinter = printerFilter === 'all' || normalizeGroupValue(group.printer) === normalizeGroupValue(printerFilter);
     const matchingItems = group.items.filter((item) => {
       const matchesColor = colorFilter === 'all' || normalizeGroupValue(item.warna) === normalizeGroupValue(colorFilter);
-      const status = getInkStatus(item);
-      const matchesStatus = statusFilter === 'all' || status === statusFilter;
       const matchesFrom = !dateFromFilter || (item.tanggal_terakhir && item.tanggal_terakhir >= dateFromFilter);
       const matchesTo = !dateToFilter || (item.tanggal_terakhir && item.tanggal_terakhir <= dateToFilter);
-      return matchesColor && matchesStatus && matchesFrom && matchesTo;
+      return matchesColor && matchesFrom && matchesTo;
     });
     return matchesSearch && matchesDepartment && matchesPrinter && matchingItems.length > 0;
   });
-
-  const statistics = groups.reduce((totals, group) => {
-    for (const item of group.items) totals[getInkStatus(item)]++;
-    return totals;
-  }, { due: 0, unfilled: 0, scheduled: 0 });
 
   const toggleGroup = (key) => {
     setExpandedGroups(current => ({ ...current, [key]: !current[key] }));
@@ -349,14 +336,11 @@ export default function App() {
           </div>
           <div>
             <h1>Sistem Isi Ulang Tinta Printer</h1>
-            <p>Kelola jenis tinta, riwayat isi ulang, dan jadwal pengisian</p>
+            <p>Kelola jenis tinta dan hitungan hari sejak isi ulang terakhir</p>
           </div>
         </div>
 
         <div className="header-actions">
-          <span className="btn btn-secondary btn-sm" title="Mode Server Database">
-            <Database size={15} /> {dbMode === 'pg' ? 'PostgreSQL' : dbMode === 'sqlite' ? 'SQLite (Fallback)' : 'Database: memeriksa'}
-          </span>
           <button
             className="btn btn-secondary"
             onClick={() => setShowImportModal(true)}
@@ -383,22 +367,10 @@ export default function App() {
         </div>
       </header>
 
-      <section className="stats-grid" aria-label="Ringkasan status isi ulang">
+      <section className="stats-grid" aria-label="Ringkasan data printer">
         <article className="stat-card">
           <span className="stat-icon stat-icon-blue"><Printer size={20} /></span>
           <div><p>Total Kelompok Tinta</p><strong>{groups.length}</strong><small>Unik per PIC, departemen, dan jenis tinta</small></div>
-        </article>
-        <article className="stat-card">
-          <span className="stat-icon stat-icon-red"><RefreshCw size={20} /></span>
-          <div><p>Perlu Isi Ulang</p><strong>{statistics.due}</strong><small>Warna telah mencapai tanggal pengingat</small></div>
-        </article>
-        <article className="stat-card">
-          <span className="stat-icon stat-icon-amber"><Droplet size={20} /></span>
-          <div><p>Belum Pernah Diisi</p><strong>{statistics.unfilled}</strong><small>Warna tinta tanpa tanggal isi ulang</small></div>
-        </article>
-        <article className="stat-card">
-          <span className="stat-icon stat-icon-green"><CircleCheck size={20} /></span>
-          <div><p>Dalam Jadwal</p><strong>{statistics.scheduled}</strong><small>Warna belum mencapai pengingat 2 bulan</small></div>
         </article>
       </section>
 
@@ -451,17 +423,6 @@ export default function App() {
               <option value="Biru">Biru (Cyan)</option>
               <option value="Kuning">Kuning (Yellow)</option>
             </select>
-            <select
-              className="select-input"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              aria-label="Filter status"
-            >
-              <option value="all">Semua Status</option>
-              <option value="due">Perlu isi ulang</option>
-              <option value="unfilled">Belum diisi</option>
-              <option value="scheduled">Dalam jadwal</option>
-            </select>
             <label className="date-filter">
               <span>Dari</span>
               <input type="date" value={dateFromFilter} onChange={(e) => setDateFromFilter(e.target.value)} aria-label="Tanggal mulai" />
@@ -478,7 +439,6 @@ export default function App() {
                 setDeptFilter('all');
                 setColorFilter('all');
                 setPrinterFilter('all');
-                setStatusFilter('all');
                 setDateFromFilter('');
                 setDateToFilter('');
               }}
@@ -506,17 +466,13 @@ export default function App() {
                   <th>Nama PIC</th>
                   <th>Departemen</th>
                   <th>Jenis Tinta</th>
-                  <th>Status Warna</th>
-                  <th>Ringkasan Status</th>
+                  <th>Warna Tinta</th>
+                  <th>Hari Sejak Isi Ulang</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredGroups.map((group, idx) => {
-                  const counts = group.items.reduce((summary, item) => {
-                    summary[getInkStatus(item)]++;
-                    return summary;
-                  }, { due: 0, unfilled: 0, scheduled: 0 });
                   const expanded = Boolean(expandedGroups[group.key]);
                   return (
                     <React.Fragment key={group.key}>
@@ -540,9 +496,9 @@ export default function App() {
                             <button
                               type="button"
                               key={item.id}
-                              className={`ink-badge color-chip ${getColorClass(item.warna)} status-${getInkStatus(item)}`}
+                              className={`ink-badge color-chip ${getColorClass(item.warna)}`}
                               onClick={() => handleQuickRefill(item)}
-                              title={`Isi ulang ${item.warna} — ${item.tanggal_terakhir || 'Belum diisi'}`}
+                              title={`Catat isi ulang ${item.warna} (terakhir: ${item.tanggal_terakhir || 'belum tercatat'})`}
                             >
                               <span className="ink-dot"></span>
                               {item.warna}
@@ -551,10 +507,15 @@ export default function App() {
                         </div>
                       </td>
                       <td>
-                        <span className="status-summary">
-                          {counts.due > 0 && <b className="summary-due">{counts.due} perlu isi ulang</b>}
-                          {counts.unfilled > 0 && <b className="summary-unfilled">{counts.unfilled} belum diisi</b>}
-                          {counts.scheduled > 0 && <b className="summary-scheduled">{counts.scheduled} dalam jadwal</b>}
+                        <span className="refill-age-summary">
+                          {group.items.map((item) => {
+                            const daysSince = getDaysSinceRefill(item.tanggal_terakhir);
+                            return (
+                              <span key={item.id}>
+                                <strong>{item.warna}:</strong> {daysSince === null ? 'belum tercatat' : `${daysSince} hari`}
+                              </span>
+                            );
+                          })}
                         </span>
                       </td>
                       <td>
@@ -577,25 +538,17 @@ export default function App() {
                           <div className="detail-panel">
                             <div className="detail-heading">
                               <div><strong>{group.nama}</strong><span>{group.departement} · {group.printer}</span></div>
-                              <small>Status dihitung per warna; pengingat dua bulan kalender setelah tanggal isi ulang.</small>
                             </div>
                             <div className="color-detail-grid">
                               {group.items.map((item) => {
-                                const status = getInkStatus(item);
-                                const dueDate = addCalendarMonths(item.tanggal_terakhir);
-                                const lastDate = parseLocalDate(item.tanggal_terakhir);
-                                const daysSince = lastDate ? Math.floor((new Date().setHours(0, 0, 0, 0) - lastDate.getTime()) / 86400000) : null;
-                                const statusLabel = status === 'due' ? 'Perlu isi ulang' : status === 'scheduled' ? 'Dalam jadwal' : 'Belum diisi';
+                                const daysSince = getDaysSinceRefill(item.tanggal_terakhir);
                                 return (
                                   <article className="color-detail-card" key={item.id}>
                                     <div className="color-detail-title">
                                       <span className={`ink-badge ${getColorClass(item.warna)}`}><span className="ink-dot"></span>{item.warna}</span>
-                                      <span className={`status-pill status-pill-${status}`}>{statusLabel}</span>
                                     </div>
                                     <div className="color-detail-data">
-                                      <span><Calendar size={14} /> Terakhir: <strong>{item.tanggal_terakhir || 'Belum diisi'}</strong></span>
-                                      <span><Clock3 size={14} /> {daysSince == null ? 'Belum pernah diisi' : `${daysSince} hari sejak isi ulang`}</span>
-                                      <span><RefreshCw size={14} /> Pengingat: <strong>{dueDate ? formatLocalDate(dueDate) : 'Belum diisi'}</strong></span>
+                                      <span><Clock3 size={14} /> {daysSince === null ? 'Belum ada catatan isi ulang' : `${daysSince} hari sejak isi ulang terakhir`}</span>
                                     </div>
                                     <div className="action-group detail-actions">
                                       <button className="btn btn-success btn-sm" onClick={() => handleQuickRefill(item)}><RefreshCw size={13} /> Isi Ulang</button>
@@ -622,9 +575,9 @@ export default function App() {
 
       {refillItem && (
         <div className="modal-overlay">
-          <div className="modal-content refill-modal">
+          <div className="modal-content refill-modal" role="dialog" aria-modal="true" aria-labelledby="refill-modal-title">
             <div className="modal-header">
-              <h2>Catat Isi Ulang</h2>
+              <h2 id="refill-modal-title">Catat Isi Ulang</h2>
               <button className="close-btn" onClick={() => setRefillItem(null)} aria-label="Tutup">
                 <X size={20} />
               </button>
@@ -660,10 +613,10 @@ export default function App() {
       {/* Modal 1: Input / Edit Data */}
       {showFormModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="printer-form-title">
             <div className="modal-header">
-              <h2>{editingItem ? 'Edit Data Printer' : 'Tambah Data Printer Baru'}</h2>
-              <button className="close-btn" onClick={() => setShowFormModal(false)}>
+              <h2 id="printer-form-title">{editingItem ? 'Edit Data Printer' : 'Tambah Data Printer Baru'}</h2>
+              <button className="close-btn" onClick={() => setShowFormModal(false)} aria-label="Tutup dialog data printer">
                 <X size={20} />
               </button>
             </div>
@@ -723,7 +676,7 @@ export default function App() {
                   )}
                   {inkTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.value} — {option.models}
+                      {option.value}: {option.models}
                     </option>
                   ))}
                 </select>
@@ -771,10 +724,10 @@ export default function App() {
       {/* Modal 2: Import Excel */}
       {showImportModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
             <div className="modal-header">
-              <h2>Impor Data dari Excel</h2>
-              <button className="close-btn" onClick={() => setShowImportModal(false)}>
+              <h2 id="import-modal-title">Impor Data dari Excel</h2>
+              <button className="close-btn" onClick={() => setShowImportModal(false)} aria-label="Tutup dialog impor">
                 <X size={20} />
               </button>
             </div>
@@ -782,7 +735,16 @@ export default function App() {
             <form onSubmit={handleUploadExcel}>
               <div
                 className="upload-dropzone"
+                role="button"
+                tabIndex={0}
+                aria-label={uploadFile ? `Pilih file Excel, saat ini ${uploadFile.name}` : 'Pilih file Excel'}
                 onClick={() => fileInputRef.current.click()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    fileInputRef.current.click();
+                  }
+                }}
               >
                 <UploadCloud className="upload-icon" />
                 <p style={{ fontWeight: 600, marginBottom: '4px' }}>
@@ -828,10 +790,10 @@ export default function App() {
       {/* Modal 3: History Modal */}
       {showHistoryModal && editingItem && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
             <div className="modal-header">
-              <h2>Riwayat Isi Ulang Printer</h2>
-              <button className="close-btn" onClick={() => setShowHistoryModal(false)}>
+              <h2 id="history-modal-title">Riwayat Isi Ulang Printer</h2>
+              <button className="close-btn" onClick={() => setShowHistoryModal(false)} aria-label="Tutup dialog riwayat">
                 <X size={20} />
               </button>
             </div>

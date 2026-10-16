@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const path = require('path');
@@ -29,7 +28,6 @@ function normalizeInkType(value) {
   return matchingType ? matchingType.inkType : printer;
 }
 
-app.use(cors());
 app.use(express.json());
 
 // Konfigurasi Multer untuk Unggah File Excel
@@ -66,6 +64,16 @@ function processRefillItem(item) {
   };
 }
 
+app.get('/api/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error GET /api/health:', err);
+    res.status(500).json({ success: false, message: 'Database tidak dapat diakses.' });
+  }
+});
+
 // 1. GET /api/refills - Mengambil semua data isi ulang
 app.get('/api/refills', async (req, res) => {
   try {
@@ -97,7 +105,6 @@ app.get('/api/refills', async (req, res) => {
     res.json({
       success: true,
       data: items,
-      dbMode: db.getMode(),
     });
   } catch (err) {
     console.error('Error GET /api/refills:', err);

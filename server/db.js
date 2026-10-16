@@ -8,12 +8,18 @@ let mode = 'pg'; // 'pg' or 'sqlite'
 let pgPool = null;
 let sqliteDb = null;
 
+const connectionString = process.env.DATABASE_URL?.trim();
 const dbConfig = {
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'printer_refill_db',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
+  ...(connectionString
+    ? { connectionString }
+    : {
+        user: process.env.DB_USER || 'postgres',
+        host: process.env.DB_HOST || 'localhost',
+        database: process.env.DB_NAME || 'printer_refill_db',
+        password: process.env.DB_PASSWORD || 'postgres',
+        port: parseInt(process.env.DB_PORT || '5432', 10),
+      }),
+  ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false } } : {}),
   connectionTimeoutMillis: 2000,
 };
 
@@ -87,37 +93,46 @@ async function initDb() {
   try {
     pgPool = new Pool(dbConfig);
     const client = await pgPool.connect();
-    console.log('✅ Terhubung ke database PostgreSQL:', dbConfig.database);
-    
-    // Inisialisasi Tabel PostgreSQL
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS printer_refills (
-        id SERIAL PRIMARY KEY,
-        nama VARCHAR(255) NOT NULL,
-        departement VARCHAR(255) NOT NULL,
-        printer VARCHAR(255) NOT NULL,
-        warna VARCHAR(50) NOT NULL,
-        tanggal_terakhir DATE,
-        catatan TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+    try {
+      console.log('✅ Terhubung ke database PostgreSQL:', dbConfig.database || 'DATABASE_URL');
 
-      CREATE TABLE IF NOT EXISTS refill_history (
-        id SERIAL PRIMARY KEY,
-        refill_id INT REFERENCES printer_refills(id) ON DELETE CASCADE,
-        nama VARCHAR(255),
-        tanggal_refill DATE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    await client.query('ALTER TABLE printer_refills ALTER COLUMN tanggal_terakhir DROP NOT NULL');
-    client.release();
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS printer_refills (
+          id SERIAL PRIMARY KEY,
+          nama VARCHAR(255) NOT NULL,
+          departement VARCHAR(255) NOT NULL,
+          printer VARCHAR(255) NOT NULL,
+          warna VARCHAR(50) NOT NULL,
+          tanggal_terakhir DATE,
+          catatan TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS refill_history (
+          id SERIAL PRIMARY KEY,
+          refill_id INT REFERENCES printer_refills(id) ON DELETE CASCADE,
+          nama VARCHAR(255),
+          tanggal_refill DATE NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await client.query('ALTER TABLE printer_refills ALTER COLUMN tanggal_terakhir DROP NOT NULL');
+    } finally {
+      client.release();
+    }
     mode = 'pg';
     const added = await syncPrinterRoster();
     if (added) console.log(`🌱 ${added} pemilik printer ditambahkan ke PostgreSQL.`);
     return;
   } catch (err) {
+    if (pgPool) {
+      await pgPool.end();
+      pgPool = null;
+    }
+    if (process.env.DB_FALLBACK_SQLITE === 'false') {
+      throw new Error(`Koneksi PostgreSQL gagal dan fallback SQLite dinonaktifkan: ${err.message}`);
+    }
     console.warn('⚠️ Gagal terhubung ke PostgreSQL (' + err.message + '). Menggunakan SQLite lokal sebagai fallback...');
   }
 

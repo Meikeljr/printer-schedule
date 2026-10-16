@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: printer-tracker-backend
+    runtime: node
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: DB_FALLBACK_SQLITE
+        value: "false"
