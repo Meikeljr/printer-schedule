@@ -70,9 +70,7 @@ function processRefillItem(item) {
 app.get('/api/refills', async (req, res) => {
   try {
     const { search, department, color } = req.query;
-    const sql = `SELECT * FROM printer_refills
-      ORDER BY CASE WHEN tanggal_terakhir IS NULL OR tanggal_terakhir = '' THEN 0 ELSE 1 END,
-      tanggal_terakhir ASC, nama ASC`;
+    const sql = 'SELECT * FROM printer_refills ORDER BY nama ASC, departement ASC, printer ASC, warna ASC';
     const rows = await db.query(sql);
 
     let items = rows.map(processRefillItem);
