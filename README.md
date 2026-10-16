@@ -13,11 +13,12 @@ Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL** untuk mencata
 ## 🌟 Fitur Utama
 
 1. **Jumlah Hari Sejak Isi Ulang**: Menampilkan jumlah hari sejak tinta terakhir diisi ulang, tanpa pengingat atau tenggat.
-2. **Pembaruan Isi Ulang Cepat**: Tombol **"Isi Ulang"** untuk memperbarui tanggal pengisian ke hari ini secara instan & mencatat riwayat pemeliharaan.
-3. **Impor Data Excel**: Pengunggahan file Excel `.xlsx` / `.xls` sesuai format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`. Kolom `Printer` berisi kode tinta dan `Jenis Tinta` berisi warna.
-4. **Ekspor Laporan Excel**: Mengunduh catatan pengisian dan jumlah hari sejak pengisian terakhir dalam format `.xlsx`.
-5. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, dan Warna Tinta.
-6. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
+2. **Daftar Pemilik Printer**: Daftar nama, departemen, jenis tinta, serta warna Hitam, Magenta, Biru, dan Kuning sesuai `Data_printer.xlsx` dimuat saat backend berjalan; tanggal awal kosong sampai tombol **"Isi Ulang"** ditekan.
+3. **Pembaruan Isi Ulang Cepat**: Tombol **"Isi Ulang"** memperbarui tanggal ke hari ini dan mencatat riwayat.
+4. **Impor Data Excel**: Pengunggahan data pengisian dengan format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`, atau data roster tanpa warna/tanggal.
+5. **Ekspor Laporan Excel**: Mengunduh catatan pengisian dan jumlah hari sejak pengisian terakhir dalam format `.xlsx`.
+6. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, dan Warna Tinta.
+7. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
 
 ### Jenis Tinta Printer
 
@@ -59,11 +60,13 @@ npm run dev
 
 ## 📊 File Sampel Excel
 
-File sampel Excel yang menjadi acuan format impor:
+File Excel berisi daftar pemilik printer:
 ```text
-C:\Users\Meikel\Documents\Printer\Sampel_data_printer.xlsx
+C:\Users\Meikel\Documents\Printer\Data_printer.xlsx
 ```
-Kolom `Printer` berisi kode `003` atau `664`, sedangkan `Jenis Tinta` berisi warna tinta. Kolom `ID` diabaikan saat impor.
+Roster disimpan di `server/printer_roster.json` dan diselaraskan otomatis ketika backend dijalankan. Setiap printer baru ditampilkan tanpa tanggal isi ulang sampai tombol **Isi Ulang** ditekan. Untuk menambahkan pemilik printer baru, tombol **Tambah Printer** tetap tersedia.
+
+File aktivitas isi ulang dengan kolom `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal` juga dapat diimpor; kolom `Printer` berisi kode tinta dan `Jenis Tinta` berisi warna.
 
 ---
 

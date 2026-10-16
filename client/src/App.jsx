@@ -113,7 +113,8 @@ export default function App() {
   // Quick Refill Date Update to Today
   const handleQuickRefill = async (item) => {
     const today = new Date().toISOString().split('T')[0];
-    if (window.confirm(`Konfirmasi isi ulang tinta "${item.printer}" warna (${item.warna}) untuk PIC ${item.nama} pada hari ini (${today})?`)) {
+    const colorLabel = item.warna ? ` warna (${item.warna})` : '';
+    if (window.confirm(`Konfirmasi isi ulang tinta "${item.printer}"${colorLabel} untuk PIC ${item.nama} pada hari ini (${today})?`)) {
       try {
         const res = await fetch(`/api/refills/${item.id}`, {
           method: 'PUT',
@@ -348,7 +349,9 @@ export default function App() {
               </thead>
               <tbody>
                 {refills.map((item, idx) => {
-                  const warnaClass = `ink-${item.warna.toLowerCase().replace('cyan', 'biru').replace('yellow', 'kuning')}`;
+                  const warnaClass = item.warna
+                    ? `ink-${item.warna.toLowerCase().replace('cyan', 'biru').replace('yellow', 'kuning')}`
+                    : '';
                   return (
                     <tr key={item.id}>
                       <td style={{ fontWeight: 700, color: '#334155' }}>{idx + 1}</td>
@@ -365,20 +368,24 @@ export default function App() {
                       </td>
                       <td style={{ fontWeight: 700, color: '#0f172a' }}>{item.printer}</td>
                       <td>
-                        <span className={`ink-badge ${warnaClass}`}>
-                          <span className="ink-dot"></span>
-                          {item.warna}
-                        </span>
+                        {item.warna ? (
+                          <span className={`ink-badge ${warnaClass}`}>
+                            <span className="ink-dot"></span>
+                            {item.warna}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
                       </td>
                       <td>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#0f172a' }}>
                           <Calendar size={14} style={{ color: '#1d4ed8' }} />
-                          {item.tanggal_terakhir}
+                          {item.tanggal_terakhir || 'Belum diisi'}
                         </span>
                       </td>
                       <td>
                         <span style={{ fontSize: '0.875rem', color: '#334155', fontWeight: 600 }}>
-                          {item.selisih_hari} hari
+                          {item.selisih_hari == null ? 'Belum diisi' : `${item.selisih_hari} hari`}
                         </span>
                       </td>
                       <td>
@@ -554,7 +561,7 @@ export default function App() {
                   {uploadFile ? uploadFile.name : 'Klik untuk memilih file Excel (.xlsx / .xls)'}
                 </p>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Format sampel: <strong>ID, Nama, Departement, Printer, Jenis Tinta, Tanggal</strong>
+                  Daftar printer: <strong>Nama, Departement, Printer</strong> · Data isi ulang: <strong>ID, Nama, Departement, Printer, Jenis Tinta, Tanggal</strong>
                 </span>
                 <input
                   type="file"

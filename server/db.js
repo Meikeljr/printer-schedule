@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const fs = require('fs');
+const printerRoster = require('./printer_roster.json');
 require('dotenv').config();
 
 let mode = 'pg'; // 'pg' or 'sqlite'
@@ -16,6 +16,70 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT || '5432', 10),
   connectionTimeoutMillis: 2000,
 };
+
+const rosterColors = ['Hitam', 'Magenta', 'Biru', 'Kuning'];
+
+function normalizeRosterPrinter(value) {
+  const printer = String(value || '').trim();
+  const normalized = printer.toLowerCase().replace(/\s+/g, ' ');
+  if (normalized === '003' || normalized === 'epson 003' || /(^|[^a-z0-9])l(3110|3210|3250|3251)([^a-z0-9]|$)/i.test(printer)) {
+    return 'Epson 003';
+  }
+  if (normalized === '664' || normalized === 'epson 664' || /(^|[^a-z0-9])l(110|120|360)([^a-z0-9]|$)/i.test(printer)) {
+    return 'Epson 664';
+  }
+  if (normalized === 'brother lc400 / lc77xl' || /mfc-j6710dw/i.test(printer)) {
+    return 'Brother LC400 / LC77XL';
+  }
+  return printer;
+}
+
+async function syncPrinterRoster(roster = printerRoster) {
+  const rows = await query('SELECT id, nama, departement, printer, warna FROM printer_refills');
+  const existing = new Set(rows.filter(row => row.warna).map(row => [
+    row.nama.trim().toLowerCase(),
+    row.departement.trim().toLowerCase(),
+    normalizeRosterPrinter(row.printer).toLowerCase(),
+    row.warna.trim().toLowerCase(),
+  ].join('|')));
+  const emptyColorRows = new Map(rows.filter(row => !row.warna).map(row => [
+    [
+      row.nama.trim().toLowerCase(),
+      row.departement.trim().toLowerCase(),
+      normalizeRosterPrinter(row.printer).toLowerCase(),
+    ].join('|'),
+    row,
+  ]));
+
+  let changed = 0;
+  for (const entry of roster) {
+    const printer = normalizeRosterPrinter(entry.printer);
+    const personKey = [entry.nama.trim().toLowerCase(), entry.departement.trim().toLowerCase(), printer.toLowerCase()].join('|');
+    const emptyColorRow = emptyColorRows.get(personKey);
+
+    for (const color of rosterColors) {
+      const colorKey = `${personKey}|${color.toLowerCase()}`;
+      if (existing.has(colorKey)) continue;
+
+      if (color === rosterColors[0] && emptyColorRow) {
+        await query('UPDATE printer_refills SET warna = $1 WHERE id = $2', [color, emptyColorRow.id]);
+        emptyColorRows.delete(personKey);
+      } else {
+        const dateWithoutRefill = mode === 'pg' ? null : '';
+        await query(
+          `INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
+           VALUES ($1, $2, $3, $4, $5, '')`,
+          [entry.nama.trim(), entry.departement.trim(), printer, color, dateWithoutRefill]
+        );
+      }
+
+      existing.add(colorKey);
+      changed++;
+    }
+  }
+
+  return changed;
+}
 
 // Inisialisasi Database
 async function initDb() {
@@ -33,7 +97,7 @@ async function initDb() {
         departement VARCHAR(255) NOT NULL,
         printer VARCHAR(255) NOT NULL,
         warna VARCHAR(50) NOT NULL,
-        tanggal_terakhir DATE NOT NULL,
+        tanggal_terakhir DATE,
         catatan TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -47,28 +111,11 @@ async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Tambah data awal jika masih kosong
-    const countRes = await client.query('SELECT COUNT(*) FROM printer_refills');
-    if (parseInt(countRes.rows[0].count, 10) === 0) {
-      const today = new Date();
-      const formatDate = (daysAgo) => {
-        const d = new Date(today);
-        d.setDate(d.getDate() - daysAgo);
-        return d.toISOString().split('T')[0];
-      };
-
-      await client.query(`
-        INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan) VALUES
-        ('Budi Santoso', 'Keuangan', 'Epson L3110', 'Hitam', '${formatDate(65)}', 'Terakhir isi 65 hari lalu'),
-        ('Siti Rahma', 'HRD', 'Canon Pixma G2010', 'Magenta', '${formatDate(50)}', 'Terakhir isi 50 hari lalu'),
-        ('Agus Pratama', 'IT Support', 'HP Smart Tank 515', 'Biru', '${formatDate(15)}', 'Terakhir isi 15 hari lalu'),
-        ('Dewi Lestari', 'Pemasaran', 'Epson L3150', 'Kuning', '${formatDate(75)}', 'Terakhir isi 75 hari lalu');
-      `);
-      console.log('🌱 Data awal (seed) berhasil ditambahkan ke PostgreSQL.');
-    }
+    await client.query('ALTER TABLE printer_refills ALTER COLUMN tanggal_terakhir DROP NOT NULL');
     client.release();
     mode = 'pg';
+    const added = await syncPrinterRoster();
+    if (added) console.log(`🌱 ${added} pemilik printer ditambahkan ke PostgreSQL.`);
     return;
   } catch (err) {
     console.warn('⚠️ Gagal terhubung ke PostgreSQL (' + err.message + '). Menggunakan SQLite lokal sebagai fallback...');
@@ -88,7 +135,7 @@ async function initDb() {
           departement TEXT NOT NULL,
           printer TEXT NOT NULL,
           warna TEXT NOT NULL,
-          tanggal_terakhir TEXT NOT NULL,
+          tanggal_terakhir TEXT,
           catatan TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -106,27 +153,16 @@ async function initDb() {
         )
       `);
 
-      sqliteDb.get('SELECT COUNT(*) as count FROM printer_refills', (err, row) => {
-        if (!err && row.count === 0) {
-          const today = new Date();
-          const formatDate = (daysAgo) => {
-            const d = new Date(today);
-            d.setDate(d.getDate() - daysAgo);
-            return d.toISOString().split('T')[0];
-          };
-
-          const stmt = sqliteDb.prepare(`
-            INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan) VALUES (?, ?, ?, ?, ?, ?)
-          `);
-          stmt.run('Budi Santoso', 'Keuangan', 'Epson L3110', 'Hitam', formatDate(65), 'Terakhir isi 65 hari lalu (Perlu Refill)');
-          stmt.run('Siti Rahma', 'HRD', 'Canon Pixma G2010', 'Magenta', formatDate(50), 'Terakhir isi 50 hari lalu (Mendekati)');
-          stmt.run('Agus Pratama', 'IT Support', 'HP Smart Tank 515', 'Biru', formatDate(15), 'Terakhir isi 15 hari lalu (Aman)');
-          stmt.run('Dewi Lestari', 'Pemasaran', 'Epson L3150', 'Kuning', formatDate(75), 'Terakhir isi 75 hari lalu (Perlu Refill)');
-          stmt.finalize();
-          console.log('🌱 Data awal (seed) berhasil ditambahkan ke SQLite.');
+      sqliteDb.get('SELECT 1', async (err) => {
+        if (err) return reject(err);
+        try {
+          const added = await syncPrinterRoster();
+          if (added) console.log(`🌱 ${added} pemilik printer ditambahkan ke SQLite.`);
+          console.log('✅ SQLite Database siap digunakan di:', dbPath);
+          resolve();
+        } catch (seedError) {
+          reject(seedError);
         }
-        console.log('✅ SQLite Database siap digunakan di:', dbPath);
-        resolve();
       });
     });
   });
@@ -167,4 +203,5 @@ module.exports = {
   initDb,
   query,
   getMode,
+  syncPrinterRoster,
 };

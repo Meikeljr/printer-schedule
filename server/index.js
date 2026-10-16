@@ -47,19 +47,20 @@ const upload = multer({
 
 // Fungsi Bantu: Hitung jumlah hari sejak isi ulang terakhir
 function processRefillItem(item) {
-  const lastDate = new Date(item.tanggal_terakhir);
-  const today = new Date();
-  
-  // Normalisasi ke jam 00:00:00 untuk komparasi tanggal murni
-  const d1 = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
-  const d2 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  
-  const diffTime = d2 - d1;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  let diffDays = null;
+  if (item.tanggal_terakhir) {
+    const lastDate = new Date(item.tanggal_terakhir);
+    const today = new Date();
+    const d1 = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+    const d2 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diffTime = d2 - d1;
+    diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  }
 
   return {
     ...item,
     printer: normalizeInkType(item.printer),
+    warna: item.warna || '',
     tanggal_terakhir: item.tanggal_terakhir ? new Date(item.tanggal_terakhir).toISOString().split('T')[0] : '',
     selisih_hari: diffDays,
   };
@@ -69,7 +70,9 @@ function processRefillItem(item) {
 app.get('/api/refills', async (req, res) => {
   try {
     const { search, department, color } = req.query;
-    const sql = 'SELECT * FROM printer_refills ORDER BY tanggal_terakhir ASC';
+    const sql = `SELECT * FROM printer_refills
+      ORDER BY CASE WHEN tanggal_terakhir IS NULL OR tanggal_terakhir = '' THEN 0 ELSE 1 END,
+      tanggal_terakhir ASC, nama ASC`;
     const rows = await db.query(sql);
 
     let items = rows.map(processRefillItem);
@@ -283,6 +286,7 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
     const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
     let countAdded = 0;
+    const printerRoster = [];
 
     for (const row of rawData) {
       // Cari nama kolom yang cocok (toleransi huruf besar/kecil & variasi nama kolom)
@@ -320,7 +324,9 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
       const rawTanggal = findVal(['tanggal', 'date', 'tanggal_terakhir', 'tgl_isi_ulang', 'tgl terakhir']);
       const catatan = findVal(['catatan', 'notes', 'keterangan']) || 'Diimpor dari Excel';
 
-      if (nama && printer && warna) {
+      if (nama && printer && !warna) {
+        printerRoster.push({ nama, departement: departement || 'General', printer });
+      } else if (nama && printer && warna) {
         const tanggal = parseExcelDate(rawTanggal);
         const mode = db.getMode();
         let insertId = null;
@@ -349,6 +355,8 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
         countAdded++;
       }
     }
+
+    countAdded += await db.syncPrinterRoster(printerRoster);
 
     // Hapus file temporary
     fs.unlinkSync(filePath);
