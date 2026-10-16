@@ -203,99 +203,6 @@ body {
   border-radius: 10px;
 }
 
-/* Alert Notification Banner */
-.reminder-banner {
-  background: #ffe4e6;
-  border: 1.5px solid #fca5a5;
-  border-radius: 16px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  box-shadow: 0 4px 12px rgba(159, 18, 57, 0.08);
-}
-
-.banner-content {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.banner-icon {
-  color: #be123c;
-  flex-shrink: 0;
-}
-
-.banner-title {
-  font-weight: 800;
-  font-size: 0.975rem;
-  color: #881337;
-}
-
-.banner-desc {
-  font-size: 0.875rem;
-  color: #9f1239;
-  font-weight: 600;
-}
-
-/* Stats Cards Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  background: var(--bg-card);
-  border: 1.5px solid var(--border-color);
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(29, 78, 216, 0.1);
-  border-color: #93c5fd;
-}
-
-.stat-info h3 {
-  font-size: 0.8rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #334155;
-  margin-bottom: 6px;
-}
-
-.stat-value {
-  font-size: 1.95rem;
-  font-weight: 900;
-  color: #0f172a;
-}
-
-.stat-icon-bg {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.icon-blue { background: #dbeafe; color: #1d4ed8; }
-.icon-red { background: #ffe4e6; color: #be123c; }
-.icon-amber { background: #fef3c7; color: #b45309; }
-.icon-emerald { background: #d1fae5; color: #047857; }
-
 /* Main Card & Tools */
 .main-card {
   background: var(--bg-card);
@@ -452,36 +359,6 @@ body {
 
 .ink-kuning { background: var(--ink-kuning-bg); border: 1.5px solid var(--ink-kuning-border); color: var(--ink-kuning-text); }
 .ink-kuning .ink-dot { background: var(--ink-kuning-dot); }
-
-/* Status Badges */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  font-size: 0.825rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.status-overdue {
-  background: #ffe4e6;
-  border: 1.5px solid #fca5a5;
-  color: #9f1239;
-}
-
-.status-warning {
-  background: #fef3c7;
-  border: 1.5px solid #fde047;
-  color: #78350f;
-}
-
-.status-ok {
-  background: #d1fae5;
-  border: 1.5px solid #6ee7b7;
-  color: #064e3b;
-}
 
 /* Modals */
 .modal-overlay {
@@ -697,30 +574,6 @@ body {
     grid-column: span 2;
   }
 
-  .reminder-banner {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 14px;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-
-  .stat-card {
-    padding: 14px;
-  }
-
-  .stat-value {
-    font-size: 1.5rem;
-  }
-
-  .stat-icon-bg {
-    width: 42px;
-    height: 42px;
-  }
-
   .card-header-tools {
     padding: 14px;
     flex-direction: column;
@@ -777,10 +630,6 @@ body {
 }
 
 @media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
   .filter-group {
     grid-template-columns: 1fr;
   }

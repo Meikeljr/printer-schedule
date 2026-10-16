@@ -10,6 +10,25 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const inkTypeByModel = [
+  { inkType: 'Epson 664', models: ['L110', 'L120', 'L360'] },
+  { inkType: 'Epson 003', models: ['L3110', 'L3210', 'L3250', 'L3251'] },
+  { inkType: 'Brother LC400 / LC77XL', models: ['MFC-J6710DW'] },
+];
+
+function normalizeInkType(value) {
+  const printer = String(value || '').trim();
+  const normalized = printer.toLowerCase().replace(/\s+/g, ' ');
+  const matchingType = inkTypeByModel.find(({ inkType, models }) =>
+    inkType.toLowerCase() === normalized ||
+    inkType.toLowerCase().endsWith(` ${normalized}`) ||
+    (/^\d{1,3}$/.test(normalized) && inkType.toLowerCase().endsWith(` ${normalized.padStart(3, '0')}`)) ||
+    models.some(model => new RegExp(`(^|[^a-z0-9])${model}([^a-z0-9]|$)`, 'i').test(printer))
+  );
+
+  return matchingType ? matchingType.inkType : printer;
+}
+
 app.use(cors());
 app.use(express.json());
 
@@ -26,7 +45,7 @@ const upload = multer({
   },
 });
 
-// Fungsi Bantu: Hitung Selisih Hari dan Status Pengingat (2 Bulan / 60 Hari)
+// Fungsi Bantu: Hitung jumlah hari sejak isi ulang terakhir
 function processRefillItem(item) {
   const lastDate = new Date(item.tanggal_terakhir);
   const today = new Date();
@@ -37,38 +56,20 @@ function processRefillItem(item) {
   
   const diffTime = d2 - d1;
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  // Tanggal Jatuh Tempo (Tanggal Terakhir + 60 hari)
-  const dueDate = new Date(d1);
-  dueDate.setDate(dueDate.getDate() + 60);
-
-  let status = 'ok'; // Aman
-  let statusText = 'Aman';
-
-  if (diffDays >= 60) {
-    status = 'overdue'; // Perlu Isi Ulang (>= 2 Bulan)
-    statusText = 'Perlu Isi Ulang';
-  } else if (diffDays >= 45) {
-    status = 'warning'; // Mendekati Tenggat (45-59 hari)
-    statusText = 'Mendekati Tenggat';
-  }
 
   return {
     ...item,
+    printer: normalizeInkType(item.printer),
     tanggal_terakhir: item.tanggal_terakhir ? new Date(item.tanggal_terakhir).toISOString().split('T')[0] : '',
-    tgl_tenggat: dueDate.toISOString().split('T')[0],
     selisih_hari: diffDays,
-    sisa_hari: 60 - diffDays,
-    status,
-    statusText,
   };
 }
 
 // 1. GET /api/refills - Mengambil semua data isi ulang
 app.get('/api/refills', async (req, res) => {
   try {
-    const { search, department, color, status } = req.query;
-    let sql = 'SELECT * FROM printer_refills ORDER BY tanggal_terakhir ASC';
+    const { search, department, color } = req.query;
+    const sql = 'SELECT * FROM printer_refills ORDER BY tanggal_terakhir ASC';
     const rows = await db.query(sql);
 
     let items = rows.map(processRefillItem);
@@ -92,10 +93,6 @@ app.get('/api/refills', async (req, res) => {
       items = items.filter(i => i.warna.toLowerCase() === color.toLowerCase());
     }
 
-    if (status && status !== 'all') {
-      items = items.filter(i => i.status === status);
-    }
-
     res.json({
       success: true,
       data: items,
@@ -107,29 +104,11 @@ app.get('/api/refills', async (req, res) => {
   }
 });
 
-// 2. GET /api/stats - Ringkasan Statistik
-app.get('/api/stats', async (req, res) => {
-  try {
-    const rows = await db.query('SELECT * FROM printer_refills');
-    const items = rows.map(processRefillItem);
-
-    const stats = {
-      total: items.length,
-      overdue: items.filter(i => i.status === 'overdue').length,
-      warning: items.filter(i => i.status === 'warning').length,
-      ok: items.filter(i => i.status === 'ok').length,
-    };
-
-    res.json({ success: true, stats });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// 3. POST /api/refills - Tambah Data Manual
+// 2. POST /api/refills - Tambah Data Manual
 app.post('/api/refills', async (req, res) => {
   try {
-    const { nama, departement, printer, warna, tanggal_terakhir, catatan } = req.body;
+    const { nama, departement, warna, tanggal_terakhir, catatan } = req.body;
+    const printer = normalizeInkType(req.body.printer);
 
     if (!nama || !departement || !printer || !warna || !tanggal_terakhir) {
       return res.status(400).json({
@@ -181,11 +160,11 @@ app.post('/api/refills', async (req, res) => {
   }
 });
 
-// 4. PUT /api/refills/:id - Perbarui Tanggal Isi Ulang Terakhir / Data
+// 3. PUT /api/refills/:id - Perbarui Tanggal Isi Ulang Terakhir / Data
 app.put('/api/refills/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama, departement, printer, warna, tanggal_terakhir, catatan, updated_by } = req.body;
+    const { nama, departement, warna, tanggal_terakhir, catatan, updated_by } = req.body;
 
     // Ambil data lama
     const oldRows = await db.query('SELECT * FROM printer_refills WHERE id = $1', [id]);
@@ -197,7 +176,7 @@ app.put('/api/refills/:id', async (req, res) => {
     const newDate = tanggal_terakhir || new Date().toISOString().split('T')[0];
     const newName = nama || oldData.nama;
     const newDept = departement || oldData.departement;
-    const newPrinter = printer || oldData.printer;
+    const newPrinter = normalizeInkType(req.body.printer) || oldData.printer;
     const newWarna = warna || oldData.warna;
     const newCatatan = catatan !== undefined ? catatan : oldData.catatan;
 
@@ -225,7 +204,7 @@ app.put('/api/refills/:id', async (req, res) => {
   }
 });
 
-// 5. DELETE /api/refills/:id - Hapus Data
+// 4. DELETE /api/refills/:id - Hapus Data
 app.delete('/api/refills/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -236,7 +215,7 @@ app.delete('/api/refills/:id', async (req, res) => {
   }
 });
 
-// 6. GET /api/history/:refill_id - Riwayat Isi Ulang Printer
+// 5. GET /api/history/:refill_id - Riwayat Isi Ulang Printer
 app.get('/api/history/:refill_id', async (req, res) => {
   try {
     const { refill_id } = req.params;
@@ -290,7 +269,7 @@ function parseExcelDate(excelDate) {
   return new Date().toISOString().split('T')[0];
 }
 
-// 7. POST /api/refills/import-excel - Import Data Excel
+// 6. POST /api/refills/import-excel - Import Data Excel
 app.post('/api/refills/import-excel', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -308,17 +287,36 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
     for (const row of rawData) {
       // Cari nama kolom yang cocok (toleransi huruf besar/kecil & variasi nama kolom)
       const findVal = (keys) => {
-        for (const k of Object.keys(row)) {
-          const cleanK = k.trim().toLowerCase();
-          if (keys.includes(cleanK)) return row[k];
+        for (const key of keys) {
+          const matchingKey = Object.keys(row).find(k => k.trim().toLowerCase() === key);
+          if (matchingKey !== undefined) return row[matchingKey];
         }
         return '';
       };
 
       const nama = findVal(['nama', 'name', 'pic', 'petugas']);
       const departement = findVal(['departement', 'departemen', 'department', 'dept']);
-      const printer = findVal(['printer', 'merk printer', 'tipe printer', 'model']);
-      const warna = findVal(['warna', 'color', 'warna tinta', 'tinta']);
+      const printerValue = findVal([
+        'printer',
+        'jenis printer',
+        'jenis_printer',
+        'jenis tinta',
+        'jenis_tinta',
+        'jenis tinta printer',
+        'tipe tinta',
+        'tipe tinta printer',
+        'ink type',
+        'merk printer',
+        'tipe printer',
+        'model',
+      ]);
+      const printer = normalizeInkType(printerValue);
+      const explicitColor = findVal(['warna', 'color', 'warna tinta', 'warna_tinta']);
+      const warna = explicitColor || (
+        Object.keys(row).some(key => ['printer', 'jenis printer', 'jenis_printer'].includes(key.trim().toLowerCase()))
+          ? findVal(['jenis tinta', 'jenis_tinta', 'tinta'])
+          : ''
+      );
       const rawTanggal = findVal(['tanggal', 'date', 'tanggal_terakhir', 'tgl_isi_ulang', 'tgl terakhir']);
       const catatan = findVal(['catatan', 'notes', 'keterangan']) || 'Diimpor dari Excel';
 
@@ -369,7 +367,7 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
   }
 });
 
-// 8. GET /api/refills/export-excel - Export Data ke Excel
+// 7. GET /api/refills/export-excel - Export Data ke Excel
 app.get('/api/refills/export-excel', async (req, res) => {
   try {
     const rows = await db.query('SELECT * FROM printer_refills ORDER BY tanggal_terakhir ASC');
@@ -379,12 +377,10 @@ app.get('/api/refills/export-excel', async (req, res) => {
       No: index + 1,
       Nama: item.nama,
       Departement: item.departement,
-      Printer: item.printer,
+      'Jenis Tinta Printer': item.printer,
       Warna: item.warna,
       'Tanggal Isi Ulang Terakhir': item.tanggal_terakhir,
-      'Tanggal Tenggat (2 Bulan)': item.tgl_tenggat,
-      'Selisih Hari': item.selisih_hari,
-      Status: item.statusText,
+      'Hari Sejak Isi Ulang': item.selisih_hari,
       Catatan: item.catatan || '-',
     }));
 

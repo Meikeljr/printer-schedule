@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Printer,
   Calendar,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
   Plus,
   FileSpreadsheet,
   Download,
@@ -21,9 +18,14 @@ import {
   Droplet
 } from 'lucide-react';
 
+const inkTypeOptions = [
+  { value: 'Epson 664', models: 'L110, L120, L360' },
+  { value: 'Epson 003', models: 'L3110, L3210, L3250, L3251' },
+  { value: 'Brother LC400 / LC77XL', models: 'Brother MFC-J6710DW' },
+];
+
 export default function App() {
   const [refills, setRefills] = useState([]);
-  const [stats, setStats] = useState({ total: 0, overdue: 0, warning: 0, ok: 0 });
   const [loading, setLoading] = useState(true);
   const [dbMode, setDbMode] = useState('');
 
@@ -31,7 +33,6 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
 
   // Modals
   const [showFormModal, setShowFormModal] = useState(false);
@@ -63,20 +64,13 @@ export default function App() {
         search,
         department: deptFilter,
         color: colorFilter,
-        status: statusFilter,
       }).toString();
 
-      const [resData, resStats] = await Promise.all([
-        fetch(`/api/refills?${queryParams}`).then(r => r.json()),
-        fetch('/api/stats').then(r => r.json()),
-      ]);
+      const resData = await fetch(`/api/refills?${queryParams}`).then(r => r.json());
 
       if (resData.success) {
         setRefills(resData.data);
         setDbMode(resData.dbMode);
-      }
-      if (resStats.success) {
-        setStats(resStats.stats);
       }
     } catch (err) {
       console.error('Gagal mengambil data:', err);
@@ -87,7 +81,7 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-  }, [search, deptFilter, colorFilter, statusFilter]);
+  }, [search, deptFilter, colorFilter]);
 
   // Handle Create / Update Data
   const handleSubmitForm = async (e) => {
@@ -119,7 +113,7 @@ export default function App() {
   // Quick Refill Date Update to Today
   const handleQuickRefill = async (item) => {
     const today = new Date().toISOString().split('T')[0];
-    if (window.confirm(`Konfirmasi isi ulang printer "${item.printer}" warna (${item.warna}) untuk PIC ${item.nama} pada hari ini (${today})?`)) {
+    if (window.confirm(`Konfirmasi isi ulang tinta "${item.printer}" warna (${item.warna}) untuk PIC ${item.nama} pada hari ini (${today})?`)) {
       try {
         const res = await fetch(`/api/refills/${item.id}`, {
           method: 'PUT',
@@ -241,7 +235,7 @@ export default function App() {
           </div>
           <div>
             <h1>Sistem Isi Ulang Tinta Printer</h1>
-            <p>Jadwal, Pengingat 2 Bulan, & Riwayat Pemeliharaan Tinta Printer</p>
+            <p>Pencatatan isi ulang dan jumlah hari sejak pengisian terakhir</p>
           </div>
         </div>
 
@@ -274,72 +268,6 @@ export default function App() {
           </button>
         </div>
       </header>
-
-      {/* Reminder Alert Banner (If Overdue printers exist) */}
-      {stats.overdue > 0 && (
-        <div className="reminder-banner">
-          <div className="banner-content">
-            <AlertTriangle className="banner-icon" size={26} />
-            <div>
-              <div className="banner-title">
-                Pengingat Isi Ulang: {stats.overdue} Tinta Printer Perlu Segera Diisi Ulang!
-              </div>
-              <div className="banner-desc">
-                Sudah lebih dari 2 bulan (60 hari) sejak pengisian tinta terakhir. Harap periksa daftar di bawah.
-              </div>
-            </div>
-          </div>
-          <button
-            className="btn btn-danger btn-sm"
-            onClick={() => setStatusFilter('overdue')}
-          >
-            Lihat Printer Perlu Refill
-          </button>
-        </div>
-      )}
-
-      {/* Statistics Cards Grid */}
-      <div className="stats-grid">
-        <div className="stat-card" onClick={() => setStatusFilter('all')} style={{ cursor: 'pointer' }}>
-          <div className="stat-info">
-            <h3>Total Tinta Printer</h3>
-            <div className="stat-value">{stats.total}</div>
-          </div>
-          <div className="stat-icon-bg icon-blue">
-            <Printer size={24} />
-          </div>
-        </div>
-
-        <div className="stat-card" onClick={() => setStatusFilter('overdue')} style={{ cursor: 'pointer' }}>
-          <div className="stat-info">
-            <h3>Perlu Refill (&ge; 60 Hari)</h3>
-            <div className="stat-value" style={{ color: '#be123c' }}>{stats.overdue}</div>
-          </div>
-          <div className="stat-icon-bg icon-red">
-            <AlertTriangle size={24} />
-          </div>
-        </div>
-
-        <div className="stat-card" onClick={() => setStatusFilter('warning')} style={{ cursor: 'pointer' }}>
-          <div className="stat-info">
-            <h3>Mendekati (45-59 Hari)</h3>
-            <div className="stat-value" style={{ color: '#b45309' }}>{stats.warning}</div>
-          </div>
-          <div className="stat-icon-bg icon-amber">
-            <Clock size={24} />
-          </div>
-        </div>
-
-        <div className="stat-card" onClick={() => setStatusFilter('ok')} style={{ cursor: 'pointer' }}>
-          <div className="stat-info">
-            <h3>Kondisi Aman (&lt; 45 Hari)</h3>
-            <div className="stat-value" style={{ color: '#047857' }}>{stats.ok}</div>
-          </div>
-          <div className="stat-icon-bg icon-emerald">
-            <CheckCircle size={24} />
-          </div>
-        </div>
-      </div>
 
       {/* Main Table Card */}
       <div className="main-card">
@@ -381,25 +309,12 @@ export default function App() {
               <option value="Kuning">Kuning (Yellow)</option>
             </select>
 
-            {/* Status Filter */}
-            <select
-              className="select-input"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">Semua Status Tenggat</option>
-              <option value="overdue">Perlu Refill (&ge; 60 Hari)</option>
-              <option value="warning">Mendekati (45-59 Hari)</option>
-              <option value="ok">Aman (&lt; 45 Hari)</option>
-            </select>
-
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => {
                 setSearch('');
                 setDeptFilter('all');
                 setColorFilter('all');
-                setStatusFilter('all');
               }}
               title="Reset Filter"
             >
@@ -424,11 +339,10 @@ export default function App() {
                   <th>No</th>
                   <th>Nama (PIC)</th>
                   <th>Departemen</th>
-                  <th>Merk / Tipe Printer</th>
+                  <th>Jenis Tinta Printer</th>
                   <th>Warna Tinta</th>
-                  <th>Tgl Terakhir Isi</th>
-                  <th>Tenggat (2 Bulan)</th>
-                  <th>Status Pengingat</th>
+                  <th>Tanggal</th>
+                  <th>Hari</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
@@ -464,28 +378,8 @@ export default function App() {
                       </td>
                       <td>
                         <span style={{ fontSize: '0.875rem', color: '#334155', fontWeight: 600 }}>
-                          {item.tgl_tenggat}
+                          {item.selisih_hari} hari
                         </span>
-                      </td>
-                      <td>
-                        {item.status === 'overdue' && (
-                          <span className="status-badge status-overdue">
-                            <AlertTriangle size={14} />
-                            Perlu Refill ({item.selisih_hari} Hari)
-                          </span>
-                        )}
-                        {item.status === 'warning' && (
-                          <span className="status-badge status-warning">
-                            <Clock size={14} />
-                            Mendekati ({item.selisih_hari} Hari)
-                          </span>
-                        )}
-                        {item.status === 'ok' && (
-                          <span className="status-badge status-ok">
-                            <CheckCircle size={14} />
-                            Aman ({item.selisih_hari} Hari)
-                          </span>
-                        )}
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -581,15 +475,23 @@ export default function App() {
               </div>
 
               <div className="form-group">
-                <label>Merk / Tipe Printer</label>
-                <input
-                  type="text"
+                <label>Jenis Tinta Printer</label>
+                <select
                   className="form-input"
                   required
-                  placeholder="Contoh: Epson L3110 / Canon G2010"
                   value={formData.printer}
                   onChange={(e) => setFormData({ ...formData, printer: e.target.value })}
-                />
+                >
+                  <option value="" disabled>Pilih jenis tinta printer</option>
+                  {formData.printer && !inkTypeOptions.some((option) => option.value === formData.printer) && (
+                    <option value={formData.printer}>{formData.printer} (data lama)</option>
+                  )}
+                  {inkTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value} — {option.models}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">
@@ -652,7 +554,7 @@ export default function App() {
                   {uploadFile ? uploadFile.name : 'Klik untuk memilih file Excel (.xlsx / .xls)'}
                 </p>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Gunakan variabel kolom: <strong>nama, departement, printer, warna, tanggal</strong>
+                  Format sampel: <strong>ID, Nama, Departement, Printer, Jenis Tinta, Tanggal</strong>
                 </span>
                 <input
                   type="file"
@@ -664,9 +566,7 @@ export default function App() {
               </div>
 
               <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', fontSize: '0.825rem' }}>
-                💡 <strong>Petunjuk Sampel File Excel:</strong><br />
-                File sampel telah disediakan di folder sistem Anda: <br />
-                <code>C:\Users\Meikel\Documents\Printer\sample_printer_data.xlsx</code>
+                💡 Kolom <strong>Printer</strong> berisi kode jenis tinta (003 atau 664), sedangkan <strong>Jenis Tinta</strong> berisi warna (Hitam, Magenta, Biru, atau Kuning). Kolom <strong>ID</strong> opsional dan tidak diimpor.
               </div>
 
               <div className="modal-actions">
@@ -702,7 +602,7 @@ export default function App() {
             </div>
 
             <div style={{ marginBottom: '12px', fontSize: '0.9rem' }}>
-              <strong>Printer:</strong> {editingItem.printer} ({editingItem.warna})<br />
+              <strong>Jenis tinta:</strong> {editingItem.printer} ({editingItem.warna})<br />
               <strong>PIC:</strong> {editingItem.nama} ({editingItem.departement})
             </div>
 

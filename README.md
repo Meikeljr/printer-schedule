@@ -1,26 +1,29 @@
-# Aplikasi Web Manajemen & Pengingat Isi Ulang Tinta Printer
+# Aplikasi Web Pencatatan Isi Ulang Tinta Printer
 
-Aplikasi web modern berbasis **React, Node.js (Express), dan PostgreSQL** untuk memantau, mengelola, dan memberikan pengingat otomatis 2 bulan (60 hari) untuk pengisian ulang tinta printer berdasarkan data Excel dengan variabel:
+Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL** untuk mencatat pengisian ulang tinta printer dan menampilkan jumlah hari sejak pengisian terakhir berdasarkan data Excel. Impor Excel mengikuti format sampel dengan kolom:
 - **nama** (Petugas / PIC)
 - **departement** (Departemen)
-- **printer** (Merk / Tipe Printer)
-- **warna** (Hitam, Magenta, Biru/Cyan, Kuning/Yellow)
+- **printer** (Kode jenis tinta, misalnya `003` atau `664`)
+- **jenis tinta** (Warna tinta: Hitam, Magenta, Biru, atau Kuning)
 - **tanggal** (Tanggal pengisian terakhir)
+- **ID** (Opsional; diabaikan saat impor)
 
 ---
 
 ## 🌟 Fitur Utama
 
-1. **Dashboard Statistik & Status Pengingat**:
-   - **Perlu Refill (Merah)**: $\ge$ 60 Hari (2 Bulan) dari pengisian terakhir.
-   - **Mendekati Tenggat (Kuning)**: 45 – 59 Hari.
-   - **Aman (Hijau)**: $< 45$ Hari.
-2. **Pengingat Otomatis 2 Bulan**: Banner peringatan otomatis muncul jika ada printer yang telah melewati tenggat 2 bulan.
-3. **Pembaruan Isi Ulang Cepat**: Tombol **"Isi Ulang Sekarang"** untuk memperbarui tanggal pengisian ke hari ini secara instan & mencatat riwayat pemeliharaan.
-4. **Impor Data Excel**: Pengunggahan file Excel `.xlsx` / `.xls` dengan kolom `nama, departement, printer, warna, tanggal`.
-5. **Ekspor Laporan Excel**: Mengunduh seluruh status dan riwayat ke dalam format file Excel `.xlsx`.
-6. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, Warna Tinta, dan Status Tenggat.
-7. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
+1. **Jumlah Hari Sejak Isi Ulang**: Menampilkan jumlah hari sejak tinta terakhir diisi ulang, tanpa pengingat atau tenggat.
+2. **Pembaruan Isi Ulang Cepat**: Tombol **"Isi Ulang"** untuk memperbarui tanggal pengisian ke hari ini secara instan & mencatat riwayat pemeliharaan.
+3. **Impor Data Excel**: Pengunggahan file Excel `.xlsx` / `.xls` sesuai format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`. Kolom `Printer` berisi kode tinta dan `Jenis Tinta` berisi warna.
+4. **Ekspor Laporan Excel**: Mengunduh catatan pengisian dan jumlah hari sejak pengisian terakhir dalam format `.xlsx`.
+5. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, dan Warna Tinta.
+6. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
+
+### Jenis Tinta Printer
+
+- **Epson 664**: L110, L120, L360
+- **Epson 003**: L3110, L3210, L3250, L3251
+- **Brother LC400 / LC77XL**: Brother MFC-J6710DW
 
 ---
 
@@ -56,11 +59,11 @@ npm run dev
 
 ## 📊 File Sampel Excel
 
-File sampel Excel siap pakai telah disiapkan di lokasi berikut:
+File sampel Excel yang menjadi acuan format impor:
 ```text
-C:\Users\Meikel\Documents\Printer\sample_printer_data.xlsx
+C:\Users\Meikel\Documents\Printer\Sampel_data_printer.xlsx
 ```
-Anda dapat langsung menguji fitur **Impor Excel** pada aplikasi web menggunakan file sampel ini.
+Kolom `Printer` berisi kode `003` atau `664`, sedangkan `Jenis Tinta` berisi warna tinta. Kolom `ID` diabaikan saat impor.
 
 ---
 
