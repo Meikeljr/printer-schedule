@@ -12,13 +12,15 @@ Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL** untuk mencata
 
 ## 🌟 Fitur Utama
 
-1. **Jumlah Hari Sejak Isi Ulang**: Menampilkan jumlah hari sejak tinta terakhir diisi ulang, tanpa pengingat atau tenggat.
+1. **Status & Pengingat Dua Bulan**: Setiap warna memiliki status dan tanggal pengingat sendiri, dihitung dua bulan kalender setelah isi ulang terakhir. Status dihitung saat dashboard dibuka; tidak ada notifikasi latar belakang.
 2. **Daftar Pemilik Printer**: Daftar nama, departemen, jenis tinta, serta warna Hitam, Magenta, Biru, dan Kuning sesuai `Data_printer.xlsx` dimuat saat backend berjalan; tanggal awal kosong sampai tombol **"Isi Ulang"** ditekan.
-3. **Pembaruan Isi Ulang Cepat**: Tombol **"Isi Ulang"** memperbarui tanggal ke hari ini dan mencatat riwayat.
-4. **Impor Data Excel**: Pengunggahan data pengisian dengan format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`; impor hanya memperbarui tanggal dan riwayat data printer yang sudah terdaftar, tidak menambahkan nama/printer baru. Baris roster tanpa warna atau data yang tidak cocok akan dilewati.
-5. **Ekspor Laporan Excel**: Mengunduh catatan pengisian dan jumlah hari sejak pengisian terakhir dalam format `.xlsx`.
-6. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, dan Warna Tinta.
-7. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
+3. **Dashboard per Kelompok Tinta**: Menampilkan satu baris per kombinasi PIC, departemen, dan jenis tinta; tanggal setiap warna tetap terpisah dan bisa dilihat atau diperbarui pada detail.
+4. **Pembaruan Isi Ulang**: Tombol **"Isi Ulang"** memperbarui tanggal yang dipilih dan mencatat riwayat.
+5. **Impor Data Excel**: Pengunggahan data pengisian dengan format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`; impor hanya memperbarui tanggal dan riwayat data printer yang sudah terdaftar, tidak menambahkan nama/printer baru. Baris roster tanpa warna atau data yang tidak cocok akan dilewati.
+6. **Ekspor Laporan Excel**: Mengunduh detail seluruh warna dalam format `.xlsx`.
+7. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, jenis tinta, warna, status, dan rentang tanggal.
+8. **Statistik Dashboard**: Menampilkan kelompok tinta unik dan jumlah warna yang perlu diisi ulang, belum diisi, atau masih dalam jadwal.
+9. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
 
 ### Jenis Tinta Printer
 
