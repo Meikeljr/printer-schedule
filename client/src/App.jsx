@@ -72,8 +72,6 @@ export default function App() {
   const [deptFilter, setDeptFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState('all');
   const [printerFilter, setPrinterFilter] = useState('all');
-  const [dateFromFilter, setDateFromFilter] = useState('');
-  const [dateToFilter, setDateToFilter] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({});
 
   // Modals
@@ -302,6 +300,11 @@ export default function App() {
     return grouped;
   }, {}));
 
+  const overdueRefillCount = refills.filter((item) => {
+    const daysSince = getDaysSinceRefill(item.tanggal_terakhir);
+    return daysSince !== null && daysSince > 60;
+  }).length;
+
   const departments = Array.from(new Set(refills.map(item => item.departement))).filter(Boolean).sort();
   const printerTypes = Array.from(new Set(refills.map(item => item.printer))).filter(Boolean).sort();
   const filteredGroups = groups.filter((group) => {
@@ -313,12 +316,9 @@ export default function App() {
     ].some(value => normalizeGroupValue(value).includes(query));
     const matchesDepartment = deptFilter === 'all' || normalizeGroupValue(group.departement) === normalizeGroupValue(deptFilter);
     const matchesPrinter = printerFilter === 'all' || normalizeGroupValue(group.printer) === normalizeGroupValue(printerFilter);
-    const matchingItems = group.items.filter((item) => {
-      const matchesColor = colorFilter === 'all' || normalizeGroupValue(item.warna) === normalizeGroupValue(colorFilter);
-      const matchesFrom = !dateFromFilter || (item.tanggal_terakhir && item.tanggal_terakhir >= dateFromFilter);
-      const matchesTo = !dateToFilter || (item.tanggal_terakhir && item.tanggal_terakhir <= dateToFilter);
-      return matchesColor && matchesFrom && matchesTo;
-    });
+    const matchingItems = group.items.filter(item => (
+      colorFilter === 'all' || normalizeGroupValue(item.warna) === normalizeGroupValue(colorFilter)
+    ));
     return matchesSearch && matchesDepartment && matchesPrinter && matchingItems.length > 0;
   });
 
@@ -372,6 +372,14 @@ export default function App() {
           <span className="stat-icon stat-icon-blue"><Printer size={20} /></span>
           <div><p>Total Kelompok Tinta</p><strong>{groups.length}</strong><small>Unik per PIC, departemen, dan jenis tinta</small></div>
         </article>
+        <article className="stat-card">
+          <span className="stat-icon stat-icon-amber"><Clock3 size={20} /></span>
+          <div>
+            <p>Tinta lebih dari 60 hari</p>
+            <strong>{loading ? 'Memuat' : loadError ? 'Gagal' : overdueRefillCount}</strong>
+            <small>Sejak isi ulang terakhir</small>
+          </div>
+        </article>
       </section>
 
       {loadError && <div className="load-error" role="alert">Data gagal dimuat: {loadError}</div>}
@@ -423,15 +431,6 @@ export default function App() {
               <option value="Biru">Biru (Cyan)</option>
               <option value="Kuning">Kuning (Yellow)</option>
             </select>
-            <label className="date-filter">
-              <span>Dari</span>
-              <input type="date" value={dateFromFilter} onChange={(e) => setDateFromFilter(e.target.value)} aria-label="Tanggal mulai" />
-            </label>
-            <label className="date-filter">
-              <span>Sampai</span>
-              <input type="date" value={dateToFilter} onChange={(e) => setDateToFilter(e.target.value)} aria-label="Tanggal akhir" />
-            </label>
-
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => {
@@ -439,8 +438,6 @@ export default function App() {
                 setDeptFilter('all');
                 setColorFilter('all');
                 setPrinterFilter('all');
-                setDateFromFilter('');
-                setDateToFilter('');
               }}
               title="Reset Filter"
             >

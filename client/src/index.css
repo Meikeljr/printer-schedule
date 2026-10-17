@@ -657,7 +657,7 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: minmax(0, 360px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 360px));
   gap: 16px;
   margin-bottom: 22px;
 }
@@ -683,6 +683,7 @@ body {
 }
 
 .stat-icon-blue { color: #1d4ed8; background: #eff6ff; }
+.stat-icon-amber { color: var(--accent-amber); background: #fffbeb; }
 .stat-card p {
   margin: 0 0 2px;
   color: #475569;
@@ -707,26 +708,6 @@ body {
 
 .filter-group {
   justify-content: flex-end;
-}
-
-.date-filter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.date-filter input {
-  width: 142px;
-  min-height: 42px;
-  padding: 8px;
-  color: #0f172a;
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font: inherit;
 }
 
 .custom-table th {
@@ -903,8 +884,6 @@ body {
   .stat-icon { width: 36px; height: 36px; }
   .stat-card strong { font-size: 1.4rem; }
   .filter-group { grid-template-columns: 1fr 1fr; }
-  .date-filter { min-width: 0; }
-  .date-filter input { width: 100%; min-width: 0; }
 
   .custom-table,
   .custom-table tbody {
@@ -972,5 +951,4 @@ body {
   .header-actions { grid-template-columns: 1fr 1fr; }
   .header-actions > .btn,
   .header-actions > span { min-width: 0; padding: 8px; font-size: 0.75rem; }
-  .date-filter { display: grid; gap: 2px; }
 }

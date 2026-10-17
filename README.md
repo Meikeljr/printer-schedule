@@ -18,8 +18,8 @@ Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL** untuk mencata
 4. **Pembaruan Isi Ulang**: Tombol **"Isi Ulang"** memperbarui tanggal yang dipilih dan mencatat riwayat.
 5. **Impor Data Excel**: Pengunggahan data pengisian dengan format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`; impor hanya memperbarui tanggal dan riwayat data printer yang sudah terdaftar, tidak menambahkan nama/printer baru. Baris roster tanpa warna atau data yang tidak cocok akan dilewati.
 6. **Ekspor Laporan Excel**: Mengunduh detail seluruh warna dalam format `.xlsx`.
-7. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, jenis tinta, warna, dan rentang tanggal.
-8. **Ringkasan Dashboard**: Menampilkan jumlah kelompok tinta unik.
+7. **Pencarian & Multi-Filter**: Filter data berdasarkan kata kunci, Departemen, jenis tinta, dan warna.
+8. **Ringkasan Dashboard**: Menampilkan jumlah kelompok tinta unik dan jumlah catatan warna tinta yang sudah lebih dari 60 hari sejak isi ulang terakhir.
 9. **Dukungan Dual Database**: Mendukung koneksi PostgreSQL bawaan, serta dilengkapi fitur **Auto-Fallback SQLite** apabila PostgreSQL lokal belum dinyalakan.
 
 ### Jenis Tinta Printer
