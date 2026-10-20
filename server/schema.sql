@@ -1,26 +1,21 @@
--- Schema PostgreSQL untuk pencatatan isi ulang printer
+-- Schema SQLite untuk pencatatan isi ulang printer
 
 CREATE TABLE IF NOT EXISTS printer_refills (
-    id SERIAL PRIMARY KEY,
-    nama VARCHAR(255) NOT NULL,
-    departement VARCHAR(255) NOT NULL,
-    printer VARCHAR(255) NOT NULL,
-    warna VARCHAR(50) NOT NULL,
-    tanggal_terakhir DATE,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nama TEXT NOT NULL,
+    departement TEXT NOT NULL,
+    printer TEXT NOT NULL,
+    warna TEXT NOT NULL,
+    tanggal_terakhir TEXT,
     catatan TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE printer_refills ALTER COLUMN tanggal_terakhir DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS refill_history (
-    id SERIAL PRIMARY KEY,
-    refill_id INT REFERENCES printer_refills(id) ON DELETE CASCADE,
-    nama VARCHAR(255),
-    tanggal_refill DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    refill_id INTEGER REFERENCES printer_refills(id) ON DELETE CASCADE,
+    nama TEXT,
+    tanggal_refill TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE printer_refills ENABLE ROW LEVEL SECURITY;
-ALTER TABLE refill_history ENABLE ROW LEVEL SECURITY;

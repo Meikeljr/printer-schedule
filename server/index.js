@@ -3,8 +3,8 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
-const db = require('./db');
 require('dotenv').config();
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -125,37 +125,18 @@ app.post('/api/refills', async (req, res) => {
       });
     }
 
-    const mode = db.getMode();
-    let insertId = null;
+    const sql = `
+      INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `;
+    const result = await db.query(sql, [nama, departement, printer, warna, tanggal_terakhir, catatan || '']);
+    const insertId = result[0].id;
 
-    if (mode === 'pg') {
-      const sql = `
-        INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
-      `;
-      const result = await db.query(sql, [nama, departement, printer, warna, tanggal_terakhir, catatan || '']);
-      insertId = result[0].id;
-      
-      // Catat ke riwayat
-      await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
-        insertId,
-        nama,
-        tanggal_terakhir,
-      ]);
-    } else {
-      const sql = `
-        INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `;
-      const result = await db.query(sql, [nama, departement, printer, warna, tanggal_terakhir, catatan || '']);
-      insertId = result[0].id;
-
-      await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
-        insertId,
-        nama,
-        tanggal_terakhir,
-      ]);
-    }
+    await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
+      insertId,
+      nama,
+      tanggal_terakhir,
+    ]);
 
     res.json({
       success: true,

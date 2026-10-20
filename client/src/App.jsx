@@ -16,6 +16,9 @@ import {
   Clock3,
   ChevronDown,
   ChevronRight,
+  ArrowDown,
+  ArrowDownUp,
+  ArrowUp,
 } from 'lucide-react';
 
 const inkTypeOptions = [
@@ -50,6 +53,20 @@ function getDaysSinceRefill(value, today = new Date()) {
   return Math.floor((currentDate.getTime() - lastDate.getTime()) / 86400000);
 }
 
+function getOldestDaysSinceRefill(items) {
+  const ages = items
+    .map(item => getDaysSinceRefill(item.tanggal_terakhir))
+    .filter(days => days !== null);
+  return ages.length ? Math.max(...ages) : null;
+}
+
+function getRefillStatus(daysSince) {
+  if (daysSince === null) return { className: 'status-neutral', label: 'Belum tercatat' };
+  if (daysSince > 60) return { className: 'status-critical', label: 'Kritis' };
+  if (daysSince >= 30) return { className: 'status-warning', label: 'Menipis' };
+  return { className: 'status-safe', label: 'Aman' };
+}
+
 function formatLocalDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -72,6 +89,10 @@ export default function App() {
   const [deptFilter, setDeptFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState('all');
   const [printerFilter, setPrinterFilter] = useState('all');
+  const [sortOption, setSortOption] = useState('nama-asc');
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [expandedGroups, setExpandedGroups] = useState({});
 
   // Modals
@@ -307,7 +328,7 @@ export default function App() {
 
   const departments = Array.from(new Set(refills.map(item => item.departement))).filter(Boolean).sort();
   const printerTypes = Array.from(new Set(refills.map(item => item.printer))).filter(Boolean).sort();
-  const filteredGroups = groups.filter((group) => {
+  const filteredGroups = groups.flatMap((group) => {
     const query = normalizeGroupValue(search);
     const matchesSearch = !query || [
       group.nama,
@@ -319,11 +340,58 @@ export default function App() {
     const matchingItems = group.items.filter(item => (
       colorFilter === 'all' || normalizeGroupValue(item.warna) === normalizeGroupValue(colorFilter)
     ));
-    return matchesSearch && matchesDepartment && matchesPrinter && matchingItems.length > 0;
+    const visibleItems = overdueOnly
+      ? matchingItems.filter(item => getDaysSinceRefill(item.tanggal_terakhir) > 60)
+      : matchingItems;
+    if (!matchesSearch || !matchesDepartment || !matchesPrinter || visibleItems.length === 0) return [];
+    return [{ ...group, visibleItems }];
+  }).sort((groupA, groupB) => {
+    let comparison = 0;
+    if (sortOption.startsWith('nama-')) {
+      comparison = String(groupA.nama || '').localeCompare(String(groupB.nama || ''), 'id', { sensitivity: 'base' });
+      if (!comparison) comparison = String(groupA.departement || '').localeCompare(String(groupB.departement || ''), 'id', { sensitivity: 'base' });
+      if (!comparison) comparison = String(groupA.printer || '').localeCompare(String(groupB.printer || ''), 'id', { sensitivity: 'base' });
+    } else {
+      const ageA = getOldestDaysSinceRefill(groupA.visibleItems);
+      const ageB = getOldestDaysSinceRefill(groupB.visibleItems);
+      if (ageA === null || ageB === null) {
+        if (ageA === ageB) return String(groupA.nama || '').localeCompare(String(groupB.nama || ''), 'id', { sensitivity: 'base' });
+        return ageA === null ? 1 : -1;
+      }
+      comparison = ageA - ageB;
+    }
+    const direction = sortOption.endsWith('desc') ? -1 : 1;
+    return comparison * direction;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, deptFilter, colorFilter, printerFilter, sortOption, overdueOnly]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredGroups.length / pageSize));
+  const displayedPage = Math.min(currentPage, pageCount);
+  const pageGroups = filteredGroups.slice((displayedPage - 1) * pageSize, displayedPage * pageSize);
 
   const toggleGroup = (key) => {
     setExpandedGroups(current => ({ ...current, [key]: !current[key] }));
+  };
+
+  const sortHeaderIcon = (field) => {
+    if (!sortOption.startsWith(`${field}-`)) return <ArrowDownUp size={14} />;
+    return sortOption.endsWith('asc') ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
+  };
+
+  const setHeaderSort = (field) => {
+    setSortOption((current) => {
+      if (field === 'nama') {
+        return current.startsWith('nama-')
+          ? (current === 'nama-asc' ? 'nama-desc' : 'nama-asc')
+          : 'nama-asc';
+      }
+      return current.startsWith('days-')
+        ? (current === 'days-desc' ? 'days-asc' : 'days-desc')
+        : 'days-desc';
+    });
   };
 
   return (
@@ -372,14 +440,20 @@ export default function App() {
           <span className="stat-icon stat-icon-blue"><Printer size={20} /></span>
           <div><p>Total Kelompok Tinta</p><strong>{groups.length}</strong><small>Unik per PIC, departemen, dan jenis tinta</small></div>
         </article>
-        <article className="stat-card">
+        <button
+          type="button"
+          className={`stat-card stat-card-action${overdueOnly ? ' is-active' : ''}`}
+          onClick={() => setOverdueOnly(current => !current)}
+          aria-pressed={overdueOnly}
+          title={overdueOnly ? 'Tampilkan semua data' : 'Filter hanya tinta lebih dari 60 hari'}
+        >
           <span className="stat-icon stat-icon-amber"><Clock3 size={20} /></span>
           <div>
             <p>Tinta lebih dari 60 hari</p>
             <strong>{loading ? 'Memuat' : loadError ? 'Gagal' : overdueRefillCount}</strong>
-            <small>Sejak isi ulang terakhir</small>
+            <small>{overdueOnly ? 'Filter aktif · klik untuk menampilkan semua' : 'Klik untuk memfilter tinta kritis'}</small>
           </div>
-        </article>
+        </button>
       </section>
 
       {loadError && <div className="load-error" role="alert">Data gagal dimuat: {loadError}</div>}
@@ -438,6 +512,7 @@ export default function App() {
                 setDeptFilter('all');
                 setColorFilter('all');
                 setPrinterFilter('all');
+                setOverdueOnly(false);
               }}
               title="Reset Filter"
             >
@@ -460,21 +535,29 @@ export default function App() {
               <thead>
                 <tr>
                   <th>No</th>
-                  <th>Nama PIC</th>
+                  <th aria-sort={sortOption.startsWith('nama-') ? (sortOption.endsWith('asc') ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="sort-header" onClick={() => setHeaderSort('nama')}>
+                      Nama PIC {sortHeaderIcon('nama')}
+                    </button>
+                  </th>
                   <th>Departemen</th>
                   <th>Jenis Tinta</th>
                   <th>Warna Tinta</th>
-                  <th>Hari Sejak Isi Ulang</th>
+                  <th aria-sort={sortOption.startsWith('days-') ? (sortOption.endsWith('asc') ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="sort-header" onClick={() => setHeaderSort('days')}>
+                      Hari Sejak Isi Ulang {sortHeaderIcon('days')}
+                    </button>
+                  </th>
                   <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredGroups.map((group, idx) => {
+                {pageGroups.map((group, idx) => {
                   const expanded = Boolean(expandedGroups[group.key]);
                   return (
                     <React.Fragment key={group.key}>
                     <tr className="group-row">
-                      <td style={{ fontWeight: 700, color: '#334155' }}>{idx + 1}</td>
+                      <td style={{ fontWeight: 700, color: '#334155' }}>{(displayedPage - 1) * pageSize + idx + 1}</td>
                       <td>
                         <div className="pic-cell">
                           <User size={16} />
@@ -489,7 +572,7 @@ export default function App() {
                       <td><span className="printer-type">{group.printer}</span></td>
                       <td>
                         <div className="color-chip-list">
-                          {group.items.map((item) => (
+                          {group.visibleItems.map((item) => (
                             <button
                               type="button"
                               key={item.id}
@@ -504,16 +587,24 @@ export default function App() {
                         </div>
                       </td>
                       <td>
-                        <span className="refill-age-summary">
-                          {group.items.map((item) => {
+                        <div className="refill-age-summary">
+                          {group.visibleItems.map((item) => {
                             const daysSince = getDaysSinceRefill(item.tanggal_terakhir);
+                            const status = getRefillStatus(daysSince);
                             return (
-                              <span key={item.id}>
-                                <strong>{item.warna}:</strong> {daysSince === null ? 'belum tercatat' : `${daysSince} hari`}
+                              <span
+                                key={item.id}
+                                className={`refill-age-badge ${status.className} ${getColorClass(item.warna)}`}
+                                aria-label={`${item.warna}: ${daysSince === null ? 'belum tercatat' : `${daysSince} hari`}, ${status.label}`}
+                                title={`${item.warna} · ${status.label}`}
+                              >
+                                <span className="ink-dot" aria-hidden="true"></span>
+                                <span>{daysSince === null ? 'Belum tercatat' : `${daysSince} hari`}</span>
+                                <small>{status.label}</small>
                               </span>
                             );
                           })}
-                        </span>
+                        </div>
                       </td>
                       <td>
                         <div className="action-group">
@@ -537,8 +628,9 @@ export default function App() {
                               <div><strong>{group.nama}</strong><span>{group.departement} · {group.printer}</span></div>
                             </div>
                             <div className="color-detail-grid">
-                              {group.items.map((item) => {
+                              {group.visibleItems.map((item) => {
                                 const daysSince = getDaysSinceRefill(item.tanggal_terakhir);
+                                const status = getRefillStatus(daysSince);
                                 return (
                                   <article className="color-detail-card" key={item.id}>
                                     <div className="color-detail-title">
@@ -546,6 +638,7 @@ export default function App() {
                                     </div>
                                     <div className="color-detail-data">
                                       <span><Clock3 size={14} /> {daysSince === null ? 'Belum ada catatan isi ulang' : `${daysSince} hari sejak isi ulang terakhir`}</span>
+                                      <span className={`refill-status-label ${status.className}`}>{status.label}</span>
                                     </div>
                                     <div className="action-group detail-actions">
                                       <button className="btn btn-success btn-sm" onClick={() => handleQuickRefill(item)}><RefreshCw size={13} /> Isi Ulang</button>
@@ -568,6 +661,50 @@ export default function App() {
             </table>
           )}
         </div>
+        {!loading && filteredGroups.length > 0 && (
+          <div className="table-pagination">
+            <span className="pagination-summary">
+              Menampilkan {(displayedPage - 1) * pageSize + 1}-{Math.min(displayedPage * pageSize, filteredGroups.length)} dari {filteredGroups.length} kelompok
+            </span>
+            <div className="pagination-controls">
+              <label className="page-size-control">
+                <span>Baris per halaman</span>
+                <select
+                  className="select-input"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Jumlah data per halaman"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </label>
+              <div className="pagination-buttons">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                  disabled={displayedPage === 1}
+                >
+                  Sebelumnya
+                </button>
+                <span aria-live="polite">Halaman {displayedPage} dari {pageCount}</span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setCurrentPage(page => Math.min(pageCount, page + 1))}
+                  disabled={displayedPage === pageCount}
+                >
+                  Berikutnya
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {refillItem && (
