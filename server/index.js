@@ -128,6 +128,7 @@ app.post('/api/refills', async (req, res) => {
     const sql = `
       INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
       VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id
     `;
     const result = await db.query(sql, [nama, departement, printer, warna, tanggal_terakhir, catatan || '']);
     const insertId = result[0].id;

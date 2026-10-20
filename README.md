@@ -1,6 +1,6 @@
 # Aplikasi Web Pencatatan Isi Ulang Tinta Printer
 
-Aplikasi web berbasis **React, Node.js (Express), dan SQLite** untuk mencatat pengisian ulang tinta printer dan menampilkan jumlah hari sejak pengisian terakhir berdasarkan data Excel. Data disimpan pada `server/printer_database.sqlite`. Impor Excel mengikuti format sampel dengan kolom:
+Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL (Supabase)** untuk mencatat pengisian ulang tinta printer dan menampilkan jumlah hari sejak pengisian terakhir berdasarkan data Excel. Impor Excel mengikuti format sampel dengan kolom:
 - **nama** (Petugas / PIC)
 - **departement** (Departemen)
 - **printer** (Kode jenis tinta, misalnya `003` atau `664`)
@@ -20,7 +20,7 @@ Aplikasi web berbasis **React, Node.js (Express), dan SQLite** untuk mencatat pe
 6. **Ekspor Laporan Excel**: Mengunduh detail seluruh warna dalam format `.xlsx`.
 7. **Pencarian, Filter & Pengurutan**: Filter berdasarkan kata kunci, Departemen, jenis tinta, dan warna; urutkan berdasarkan nama PIC atau usia isi ulang. Kartu tinta lebih dari 60 hari menjadi filter cepat.
 8. **Ringkasan Dashboard & Pagination**: Menampilkan jumlah kelompok tinta unik dan jumlah catatan warna tinta yang sudah lebih dari 60 hari sejak isi ulang terakhir, dengan pilihan 10, 25, atau 50 kelompok per halaman.
-9. **Database SQLite**: Backend menggunakan SQLite langsung tanpa memerlukan server database terpisah. Lokasi file dapat diatur melalui `SQLITE_DB_PATH`.
+9. **Database PostgreSQL**: Backend menyimpan data pada PostgreSQL, termasuk koneksi Supabase untuk deployment.
 
 ### Jenis Tinta Printer
 
@@ -72,20 +72,26 @@ File aktivitas isi ulang dengan kolom `ID, Nama, Departement, Printer, Jenis Tin
 
 ---
 
-## 🗄️ Konfigurasi SQLite
+## 🗄️ Konfigurasi Supabase PostgreSQL
 
-Backend membuat tabel yang diperlukan secara otomatis dan menyimpan data di `server/printer_database.sqlite`. Salin `server/.env.example` menjadi `server/.env` jika ingin mengatur lokasi file database:
+1. Buat proyek di [Supabase](https://supabase.com/) dan tunggu sampai database siap.
+2. Dari dashboard proyek, buka **Connect** dan salin connection string PostgreSQL. Untuk service Render, gunakan alamat **Session pooler** jika direct connection tidak dapat dijangkau melalui IPv4.
+3. Jalankan migrasi `supabase/migrations/20261016120000_create_printer_refill_tables.sql` melalui **SQL Editor** Supabase. Backend juga membuat tabel jika belum ada.
+4. Jangan masukkan password ke Git atau kode frontend. Simpan connection string sebagai environment variable `DATABASE_URL` di Render.
+
+Untuk development lokal, isi `server/.env` (jangan commit file ini):
 
 ```env
 PORT=5000
-SQLITE_DB_PATH=printer_database.sqlite
+DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
+DB_SSL=true
 ```
 
-`SQLITE_DB_PATH` dapat berupa path absolut atau path relatif terhadap direktori `server`. Struktur tabel juga tersedia di `server/schema.sql`. Saat backend dijalankan, daftar printer dari `server/printer_roster.json` disinkronkan tanpa menghapus catatan yang sudah ada.
+Ganti placeholder dengan connection string dari Supabase. Backend membutuhkan koneksi PostgreSQL keluar; `DB_SSL=true` mengaktifkan TLS. Struktur tabel juga tersedia di `server/schema.sql`. Saat backend dijalankan, daftar printer dari `server/printer_roster.json` disinkronkan tanpa menghapus catatan yang sudah ada.
 
 ### Deploy ke Vercel dan Render
 
-- **Render**: Hubungkan repository GitHub. Blueprint `render.yaml` membuat backend dengan direktori root `server`. SQLite menyimpan data dalam file lokal; filesystem service hosting bisa bersifat sementara. Untuk mempertahankan data saat deploy/restart, atur persistent disk pada hosting dan arahkan `SQLITE_DB_PATH` ke file pada disk tersebut.
+- **Render**: Hubungkan repository GitHub atau gunakan Blueprint dari `render.yaml`. Service memakai direktori root `server`, `npm ci`, dan `npm start`. Tambahkan `DATABASE_URL` pada Environment di Render dengan connection string PostgreSQL Supabase; `DB_SSL=true` sudah didefinisikan di blueprint. SQLite maupun Persistent Disk tidak diperlukan.
 - **Vercel**: Impor repository dan atur **Root Directory** ke `client`. Vercel membangun frontend menggunakan `npm run build`; aturan di `client/vercel.json` meneruskan `/api/*` ke backend Render.
 
-Domain backend pada `client/vercel.json` harus sama dengan domain service Render. Endpoint `/api/health` digunakan Render untuk memeriksa koneksi backend dan database.
+Domain backend pada `client/vercel.json` harus sama dengan domain service Render. Endpoint `/api/health` digunakan Render untuk memeriksa koneksi backend dan database. Setelah deploy, periksa log Render untuk pesan bahwa PostgreSQL berhasil diinisialisasi.

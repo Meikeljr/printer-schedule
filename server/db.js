@@ -1,10 +1,23 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 const printerRoster = require('./printer_roster.json');
+require('dotenv').config();
 
-let sqliteDb = null;
+let pool = null;
 
-const dbPath = path.resolve(__dirname, process.env.SQLITE_DB_PATH || 'printer_database.sqlite');
+const connectionString = process.env.DATABASE_URL?.trim();
+const dbConfig = {
+  ...(connectionString
+    ? { connectionString }
+    : {
+        user: process.env.DB_USER || 'postgres',
+        host: process.env.DB_HOST || 'localhost',
+        database: process.env.DB_NAME || 'printer_refill_db',
+        password: process.env.DB_PASSWORD || 'postgres',
+        port: Number.parseInt(process.env.DB_PORT || '5432', 10),
+      }),
+  ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false } } : {}),
+  connectionTimeoutMillis: 5000,
+};
 
 const rosterColors = ['Hitam', 'Magenta', 'Biru', 'Kuning'];
 
@@ -38,41 +51,15 @@ function normalizeRosterPrinter(value) {
   return printer;
 }
 
-// Helper untuk menjalankan query SQLite
-function runSql(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    sqliteDb.run(sql, params, function (err) {
-      if (err) return reject(err);
+async function query(text, params = []) {
+  if (!pool) {
+    throw new Error('Database PostgreSQL belum diinisialisasi.');
+  }
 
-      resolve({
-        id: this.lastID,
-        changes: this.changes
-      });
-    });
-  });
+  const result = await pool.query(text, params);
+  return result.rows;
 }
 
-// Helper untuk mengambil banyak baris
-function allSql(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    sqliteDb.all(sql, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
-}
-
-// Helper untuk mengambil satu baris
-function getSql(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    sqliteDb.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
-}
-
-// Sinkronisasi daftar printer dari printer_roster.json
 async function syncPrinterRoster(roster = printerRoster) {
   const rows = await query(
     'SELECT id, nama, departement, printer, warna FROM printer_refills'
@@ -85,7 +72,7 @@ async function syncPrinterRoster(roster = printerRoster) {
         row.nama.trim().toLowerCase(),
         row.departement.trim().toLowerCase(),
         normalizeRosterPrinter(row.printer).toLowerCase(),
-        row.warna.trim().toLowerCase()
+        row.warna.trim().toLowerCase(),
       ].join('|'))
   );
 
@@ -96,9 +83,9 @@ async function syncPrinterRoster(roster = printerRoster) {
         [
           row.nama.trim().toLowerCase(),
           row.departement.trim().toLowerCase(),
-          normalizeRosterPrinter(row.printer).toLowerCase()
+          normalizeRosterPrinter(row.printer).toLowerCase(),
         ].join('|'),
-        row
+        row,
       ])
   );
 
@@ -106,18 +93,15 @@ async function syncPrinterRoster(roster = printerRoster) {
 
   for (const entry of roster) {
     const printer = normalizeRosterPrinter(entry.printer);
-
     const personKey = [
       entry.nama.trim().toLowerCase(),
       entry.departement.trim().toLowerCase(),
-      printer.toLowerCase()
+      printer.toLowerCase(),
     ].join('|');
-
     const emptyColorRow = emptyColorRows.get(personKey);
 
     for (const color of rosterColors) {
       const colorKey = `${personKey}|${color.toLowerCase()}`;
-
       if (existing.has(colorKey)) continue;
 
       if (color === rosterColors[0] && emptyColorRow) {
@@ -125,20 +109,13 @@ async function syncPrinterRoster(roster = printerRoster) {
           'UPDATE printer_refills SET warna = $1 WHERE id = $2',
           [color, emptyColorRow.id]
         );
-
         emptyColorRows.delete(personKey);
       } else {
         await query(
           `INSERT INTO printer_refills
             (nama, departement, printer, warna, tanggal_terakhir, catatan)
            VALUES ($1, $2, $3, $4, $5, '')`,
-          [
-            entry.nama.trim(),
-            entry.departement.trim(),
-            printer,
-            color,
-            null
-          ]
+          [entry.nama.trim(), entry.departement.trim(), printer, color, null]
         );
       }
 
@@ -150,90 +127,56 @@ async function syncPrinterRoster(roster = printerRoster) {
   return changed;
 }
 
-// Inisialisasi SQLite secara langsung
 async function initDb() {
-  if (sqliteDb) {
-    throw new Error('Database SQLite sudah diinisialisasi.');
+  if (pool) {
+    throw new Error('Database PostgreSQL sudah diinisialisasi.');
   }
 
-  sqliteDb = new sqlite3.Database(dbPath);
+  pool = new Pool(dbConfig);
+  pool.on('error', error => {
+    console.error('Koneksi PostgreSQL idle mengalami kesalahan:', error);
+  });
 
   try {
-    await runSql('PRAGMA foreign_keys = ON');
-
-    await runSql(`
+    await pool.query('SELECT 1');
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS printer_refills (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nama TEXT NOT NULL,
-        departement TEXT NOT NULL,
-        printer TEXT NOT NULL,
-        warna TEXT NOT NULL,
-        tanggal_terakhir TEXT,
+        id SERIAL PRIMARY KEY,
+        nama VARCHAR(255) NOT NULL,
+        departement VARCHAR(255) NOT NULL,
+        printer VARCHAR(255) NOT NULL,
+        warna VARCHAR(50) NOT NULL,
+        tanggal_terakhir DATE,
         catatan TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-
-    await runSql(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS refill_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        refill_id INTEGER,
-        nama TEXT,
-        tanggal_refill TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (refill_id)
-          REFERENCES printer_refills(id)
-          ON DELETE CASCADE
+        id SERIAL PRIMARY KEY,
+        refill_id INT REFERENCES printer_refills(id) ON DELETE CASCADE,
+        nama VARCHAR(255),
+        tanggal_refill DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await pool.query(
+      'ALTER TABLE printer_refills ALTER COLUMN tanggal_terakhir DROP NOT NULL'
+    );
 
-    // Pastikan database dapat dibaca
-    await getSql('SELECT 1');
-
-    // Tambahkan printer yang belum terdaftar tanpa menghapus data lama
     const added = await syncPrinterRoster();
-
-    if (added) {
-      console.log(`🌱 ${added} data printer baru ditambahkan.`);
-    }
-
-    console.log('✅ SQLite berhasil diinisialisasi.');
-    console.log('📁 Lokasi database:', dbPath);
-  } catch (err) {
-    await new Promise(resolve => {
-      sqliteDb.close(() => resolve());
-    });
-
-    sqliteDb = null;
-
-    throw new Error(`Gagal menginisialisasi SQLite: ${err.message}`);
+    if (added) console.log(`🌱 ${added} data printer baru ditambahkan.`);
+    console.log('✅ PostgreSQL berhasil diinisialisasi.');
+  } catch (error) {
+    await pool.end();
+    pool = null;
+    throw new Error(`Gagal menginisialisasi PostgreSQL: ${error.message}`);
   }
-}
-
-// Wrapper query untuk mempertahankan kompatibilitas dengan backend
-async function query(text, params = []) {
-  if (!sqliteDb) {
-    throw new Error('Database SQLite belum diinisialisasi.');
-  }
-
-  const sqlText = text.replace(/\$\d+/g, '?');
-  const normalizedSql = sqlText.trim().toUpperCase();
-
-  if (/^(SELECT|PRAGMA|WITH)\b/.test(normalizedSql)) {
-    return allSql(sqlText, params);
-  }
-
-  const result = await runSql(sqlText, params);
-
-  return [{
-    id: result.id,
-    changes: result.changes
-  }];
 }
 
 module.exports = {
   initDb,
   query,
-  syncPrinterRoster
+  syncPrinterRoster,
 };
