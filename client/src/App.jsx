@@ -71,6 +71,18 @@ function formatLocalDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function getLatestUpdateDate(items) {
+  return items.reduce((latest, item) => {
+    if (!item.updated_at) return latest;
+    const value = typeof item.updated_at === 'string'
+      ? item.updated_at.trim().replace(' ', 'T')
+      : item.updated_at;
+    const updatedAt = new Date(value);
+    if (Number.isNaN(updatedAt.getTime())) return latest;
+    return !latest || updatedAt > latest ? updatedAt : latest;
+  }, null);
+}
+
 function getTodayDate() {
   return formatLocalDate(new Date());
 }
@@ -325,6 +337,7 @@ export default function App() {
     const daysSince = getDaysSinceRefill(item.tanggal_terakhir);
     return daysSince !== null && daysSince > 60;
   }).length;
+  const latestUpdateDate = getLatestUpdateDate(refills);
 
   const departments = Array.from(new Set(refills.map(item => item.departement))).filter(Boolean).sort();
   const printerTypes = Array.from(new Set(refills.map(item => item.printer))).filter(Boolean).sort();
@@ -454,6 +467,23 @@ export default function App() {
             <small>{overdueOnly ? 'Filter aktif · klik untuk menampilkan semua' : 'Klik untuk memfilter tinta kritis'}</small>
           </div>
         </button>
+        <aside className="stats-info-card" aria-label="Informasi pengingat isi ulang">
+          <div className="stats-info-heading">
+            <span className="stat-icon stat-icon-blue"><Clock3 size={20} /></span>
+            <p>Informasi pengingat</p>
+          </div>
+          <dl className="stats-info-list">
+            <div>
+              <dt>Batas pengingat isi ulang</dt>
+              <dd>60 hari</dd>
+            </div>
+            <div>
+              <dt>Terakhir diperbarui</dt>
+              <dd>{latestUpdateDate ? latestUpdateDate.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Belum tersedia'}</dd>
+            </div>
+          </dl>
+          <p className="stats-info-note">Tanggal kosong berarti riwayat isi ulang belum tercatat.</p>
+        </aside>
       </section>
 
       {loadError && <div className="load-error" role="alert">Data gagal dimuat: {loadError}</div>}

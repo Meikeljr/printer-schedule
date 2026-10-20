@@ -657,7 +657,7 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 360px));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 16px;
   margin-bottom: 22px;
 }
@@ -671,6 +671,63 @@ body {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
+}
+
+.stats-info-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #fff 0%, #f8fbff 100%);
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.045);
+}
+
+.stats-info-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stats-info-heading p {
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.stats-info-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stats-info-list > div {
+  min-width: 0;
+}
+
+.stats-info-list dt {
+  margin-bottom: 2px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.stats-info-list dd {
+  color: #1e3a8a;
+  font-size: 0.88rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.stats-info-note {
+  padding-top: 9px;
+  border-top: 1px solid #dbeafe;
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.4;
 }
 
 .stat-icon {
@@ -1048,8 +1105,9 @@ body {
 }
 
 @media (max-width: 768px) {
-  .stats-grid { gap: 10px; margin-bottom: 14px; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
   .stat-card { padding: 14px; gap: 10px; }
+  .stats-info-card { grid-column: 1 / -1; }
   .stat-icon { width: 36px; height: 36px; }
   .stat-card strong { font-size: 1.4rem; }
   .filter-group { grid-template-columns: 1fr 1fr; }
@@ -1135,9 +1193,10 @@ body {
 }
 
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
   .stat-card { align-items: flex-start; padding: 12px 10px; }
   .stat-card small { font-size: 0.68rem; }
+  .stats-info-card { grid-column: auto; padding: 14px; }
   .header-actions { grid-template-columns: 1fr 1fr; }
   .header-actions > .btn,
   .header-actions > span { min-width: 0; padding: 8px; font-size: 0.75rem; }
