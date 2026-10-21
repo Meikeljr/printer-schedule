@@ -127,13 +127,12 @@ app.post('/api/refills', async (req, res) => {
 
     const sql = `
       INSERT INTO printer_refills (nama, departement, printer, warna, tanggal_terakhir, catatan)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
     const result = await db.query(sql, [nama, departement, printer, warna, tanggal_terakhir, catatan || '']);
-    const insertId = result[0].id;
+    const insertId = result.insertId;
 
-    await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
+    await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES (?, ?, ?)', [
       insertId,
       nama,
       tanggal_terakhir,
@@ -157,7 +156,7 @@ app.put('/api/refills/:id', async (req, res) => {
     const { nama, departement, warna, tanggal_terakhir, catatan, updated_by } = req.body;
 
     // Ambil data lama
-    const oldRows = await db.query('SELECT * FROM printer_refills WHERE id = $1', [id]);
+    const oldRows = await db.query('SELECT * FROM printer_refills WHERE id = ?', [id]);
     if (!oldRows || oldRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
     }
@@ -172,13 +171,13 @@ app.put('/api/refills/:id', async (req, res) => {
 
     const sql = `
       UPDATE printer_refills 
-      SET nama = $1, departement = $2, printer = $3, warna = $4, tanggal_terakhir = $5, catatan = $6, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $7
+      SET nama = ?, departement = ?, printer = ?, warna = ?, tanggal_terakhir = ?, catatan = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
     `;
     await db.query(sql, [newName, newDept, newPrinter, newWarna, newDate, newCatatan, id]);
 
     // Tambah entri ke riwayat jika tanggal berubah atau diperbarui
-    await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
+    await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES (?, ?, ?)', [
       id,
       updated_by || newName,
       newDate,
@@ -198,7 +197,7 @@ app.put('/api/refills/:id', async (req, res) => {
 app.delete('/api/refills/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM printer_refills WHERE id = $1', [id]);
+    await db.query('DELETE FROM printer_refills WHERE id = ?', [id]);
     res.json({ success: true, message: 'Data berhasil dihapus!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -210,7 +209,7 @@ app.get('/api/history/:refill_id', async (req, res) => {
   try {
     const { refill_id } = req.params;
     const rows = await db.query(
-      'SELECT * FROM refill_history WHERE refill_id = $1 ORDER BY tanggal_refill DESC, created_at DESC',
+      'SELECT * FROM refill_history WHERE refill_id = ? ORDER BY tanggal_refill DESC, created_at DESC',
       [refill_id]
     );
     res.json({ success: true, data: rows });
@@ -350,12 +349,12 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
       for (const matchingRow of matchingRows) {
         await db.query(
           `UPDATE printer_refills
-           SET tanggal_terakhir = $1, catatan = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $3`,
+           SET tanggal_terakhir = ?, catatan = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
           [tanggal, catatan, matchingRow.id]
         );
         await db.query(
-          'INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)',
+          'INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES (?, ?, ?)',
           [matchingRow.id, nama, tanggal]
         );
       }

@@ -1,23 +1,50 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 const printerRoster = require('./printer_roster.json');
 require('dotenv').config();
 
 let pool = null;
 
-const connectionString = process.env.DATABASE_URL?.trim();
-const dbConfig = {
-  ...(connectionString
-    ? { connectionString }
-    : {
-        user: process.env.DB_USER || 'postgres',
-        host: process.env.DB_HOST || 'localhost',
-        database: process.env.DB_NAME || 'printer_refill_db',
-        password: process.env.DB_PASSWORD || 'postgres',
-        port: Number.parseInt(process.env.DB_PORT || '5432', 10),
-      }),
-  ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false } } : {}),
-  connectionTimeoutMillis: 5000,
-};
+function getDbConfig() {
+  const connectionString = process.env.DATABASE_URL?.trim();
+  let config;
+
+  if (connectionString) {
+    const url = new URL(connectionString);
+    if (!['mysql:', 'mysql2:'].includes(url.protocol)) {
+      throw new Error('DATABASE_URL harus menggunakan protokol mysql:// atau mysql2://.');
+    }
+
+    config = {
+      host: url.hostname,
+      port: Number.parseInt(url.port || '3306', 10),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: decodeURIComponent(url.pathname.replace(/^\/+/, '')),
+    };
+  } else {
+    config = {
+      host: process.env.DB_HOST || 'localhost',
+      port: Number.parseInt(process.env.DB_PORT || '3306', 10),
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME || 'printer_refill_db',
+    };
+  }
+
+  if (!config.user || !config.password || !config.database) {
+    throw new Error('DB_USER, DB_PASSWORD, dan DB_NAME wajib dikonfigurasi.');
+  }
+
+  return {
+    ...config,
+    ...(process.env.DB_SSL === 'true' ? { ssl: {} } : {}),
+    waitForConnections: true,
+    connectionLimit: Number.parseInt(process.env.DB_CONNECTION_LIMIT || '10', 10),
+    queueLimit: 0,
+    connectTimeout: 5000,
+    dateStrings: true,
+  };
+}
 
 const rosterColors = ['Hitam', 'Magenta', 'Biru', 'Kuning'];
 
@@ -53,11 +80,11 @@ function normalizeRosterPrinter(value) {
 
 async function query(text, params = []) {
   if (!pool) {
-    throw new Error('Database PostgreSQL belum diinisialisasi.');
+    throw new Error('Database MySQL belum diinisialisasi.');
   }
 
-  const result = await pool.query(text, params);
-  return result.rows;
+  const [result] = await pool.execute(text, params);
+  return result;
 }
 
 async function syncPrinterRoster(roster = printerRoster) {
@@ -106,7 +133,7 @@ async function syncPrinterRoster(roster = printerRoster) {
 
       if (color === rosterColors[0] && emptyColorRow) {
         await query(
-          'UPDATE printer_refills SET warna = $1 WHERE id = $2',
+          'UPDATE printer_refills SET warna = ? WHERE id = ?',
           [color, emptyColorRow.id]
         );
         emptyColorRows.delete(personKey);
@@ -114,7 +141,7 @@ async function syncPrinterRoster(roster = printerRoster) {
         await query(
           `INSERT INTO printer_refills
             (nama, departement, printer, warna, tanggal_terakhir, catatan)
-           VALUES ($1, $2, $3, $4, $5, '')`,
+           VALUES (?, ?, ?, ?, ?, '')`,
           [entry.nama.trim(), entry.departement.trim(), printer, color, null]
         );
       }
@@ -129,19 +156,16 @@ async function syncPrinterRoster(roster = printerRoster) {
 
 async function initDb() {
   if (pool) {
-    throw new Error('Database PostgreSQL sudah diinisialisasi.');
+    throw new Error('Database MySQL sudah diinisialisasi.');
   }
 
-  pool = new Pool(dbConfig);
-  pool.on('error', error => {
-    console.error('Koneksi PostgreSQL idle mengalami kesalahan:', error);
-  });
+  pool = mysql.createPool(getDbConfig());
 
   try {
     await pool.query('SELECT 1');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS printer_refills (
-        id SERIAL PRIMARY KEY,
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         nama VARCHAR(255) NOT NULL,
         departement VARCHAR(255) NOT NULL,
         printer VARCHAR(255) NOT NULL,
@@ -150,28 +174,27 @@ async function initDb() {
         catatan TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS refill_history (
-        id SERIAL PRIMARY KEY,
-        refill_id INT REFERENCES printer_refills(id) ON DELETE CASCADE,
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        refill_id INT UNSIGNED,
         nama VARCHAR(255),
         tanggal_refill DATE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_refill_history_refill
+          FOREIGN KEY (refill_id) REFERENCES printer_refills(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
-    await pool.query(
-      'ALTER TABLE printer_refills ALTER COLUMN tanggal_terakhir DROP NOT NULL'
-    );
 
     const added = await syncPrinterRoster();
     if (added) console.log(`🌱 ${added} data printer baru ditambahkan.`);
-    console.log('✅ PostgreSQL berhasil diinisialisasi.');
+    console.log('✅ MySQL berhasil diinisialisasi.');
   } catch (error) {
     await pool.end();
     pool = null;
-    throw new Error(`Gagal menginisialisasi PostgreSQL: ${error.message}`);
+    throw new Error(`Gagal menginisialisasi MySQL: ${error.message}`);
   }
 }
 

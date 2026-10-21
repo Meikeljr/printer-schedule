@@ -7,7 +7,13 @@ services:
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      - key: DATABASE_URL
+      - key: DB_HOST
         sync: false
-      - key: DB_SSL
-        value: "true"
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_NAME
+        value: printer_refill_db
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false

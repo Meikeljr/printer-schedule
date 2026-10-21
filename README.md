@@ -1,6 +1,6 @@
 # Aplikasi Web Pencatatan Isi Ulang Tinta Printer
 
-Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL (Supabase)** untuk mencatat pengisian ulang tinta printer dan menampilkan jumlah hari sejak pengisian terakhir berdasarkan data Excel. Impor Excel mengikuti format sampel dengan kolom:
+Aplikasi web berbasis **React, Node.js (Express), dan MySQL/MariaDB** untuk mencatat pengisian ulang tinta printer dan menampilkan jumlah hari sejak pengisian terakhir berdasarkan data Excel. Impor Excel mengikuti format sampel dengan kolom:
 - **nama** (Petugas / PIC)
 - **departement** (Departemen)
 - **printer** (Kode jenis tinta, misalnya `003` atau `664`)
@@ -20,7 +20,7 @@ Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL (Supabase)** un
 6. **Ekspor Laporan Excel**: Mengunduh detail seluruh warna dalam format `.xlsx`.
 7. **Pencarian, Filter & Pengurutan**: Filter berdasarkan kata kunci, Departemen, jenis tinta, dan warna; urutkan berdasarkan nama PIC atau usia isi ulang. Kartu tinta lebih dari 60 hari menjadi filter cepat.
 8. **Ringkasan Dashboard & Pagination**: Menampilkan jumlah kelompok tinta unik dan jumlah catatan warna tinta yang sudah lebih dari 60 hari sejak isi ulang terakhir, dengan pilihan 10, 25, atau 50 kelompok per halaman.
-9. **Database PostgreSQL**: Backend menyimpan data pada PostgreSQL, termasuk koneksi Supabase untuk deployment.
+9. **Database MySQL/MariaDB**: Backend menyimpan data pada database MySQL/MariaDB di server yang dikonfigurasi.
 
 ### Jenis Tinta Printer
 
@@ -72,26 +72,51 @@ File aktivitas isi ulang dengan kolom `ID, Nama, Departement, Printer, Jenis Tin
 
 ---
 
-## 🗄️ Konfigurasi Supabase PostgreSQL
+## 🗄️ Konfigurasi MySQL/MariaDB di server pribadi
 
-1. Buat proyek di [Supabase](https://supabase.com/) dan tunggu sampai database siap.
-2. Dari dashboard proyek, buka **Connect** dan salin connection string PostgreSQL. Untuk service Render, gunakan alamat **Session pooler** jika direct connection tidak dapat dijangkau melalui IPv4.
-3. Jalankan migrasi `supabase/migrations/20261016120000_create_printer_refill_tables.sql` melalui **SQL Editor** Supabase. Backend juga membuat tabel jika belum ada.
-4. Jangan masukkan password ke Git atau kode frontend. Simpan connection string sebagai environment variable `DATABASE_URL` di Render.
+1. Pasang MySQL atau MariaDB di server dan buat database serta akun aplikasi. Contoh perintah di konsol MySQL (ganti nama dan password sesuai kebutuhan):
 
-Untuk development lokal, isi `server/.env` (jangan commit file ini):
+```sql
+CREATE DATABASE printer_refill_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+CREATE USER 'printer_app'@'<ALAMAT_SERVER_BACKEND>'
+  IDENTIFIED BY '<PASSWORD_KUAT>';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, REFERENCES
+  ON printer_refill_db.* TO 'printer_app'@'<ALAMAT_SERVER_BACKEND>';
+FLUSH PRIVILEGES;
+```
+
+`<ALAMAT_SERVER_BACKEND>` adalah host/IP mesin backend yang diizinkan mengakses MySQL. Jika backend dan database berada pada mesin yang sama, gunakan `localhost`. Simpan konfigurasi berikut di `server/.env` (jangan commit file ini):
 
 ```env
 PORT=5000
-DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
-DB_SSL=true
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=printer_refill_db
+DB_USER=printer_app
+DB_PASSWORD=<PASSWORD_KUAT>
+DB_SSL=false
 ```
 
-Ganti placeholder dengan connection string dari Supabase. Backend membutuhkan koneksi PostgreSQL keluar; `DB_SSL=true` mengaktifkan TLS. Struktur tabel juga tersedia di `server/schema.sql`. Saat backend dijalankan, daftar printer dari `server/printer_roster.json` disinkronkan tanpa menghapus catatan yang sudah ada.
+Sesuaikan `DB_HOST` ke alamat server MySQL jika backend dan database terpisah. Aktifkan `DB_SSL=true` bila server MySQL dikonfigurasi dengan TLS dan sertifikat yang dipercaya. Jangan membuka port MySQL ke internet umum; batasi akses dengan firewall ke server backend atau jaringan privat/VPN. Jalankan `server/schema.sql` setelah membuat database, atau biarkan backend membuat tabel saat pertama kali dijalankan. Backend juga menyelaraskan roster dari `server/printer_roster.json`.
+
+Backend memerlukan Node.js, lalu bisa dipasang dan dijalankan di server seperti berikut:
+
+```bash
+cd server
+npm ci
+npm start
+```
+
+Untuk akses dari komputer lain, letakkan backend di balik reverse proxy HTTPS (misalnya Nginx) dan arahkan `/api/` ke port 5000. Frontend harus disajikan dari server atau domain yang sama dan meneruskan permintaan `/api/` ke backend. Jangan mengekspos port backend atau database secara langsung ke internet tanpa pengamanan.
+
+Mengganti driver dan skema **tidak memindahkan data PostgreSQL yang sudah ada**. Jika ingin mempertahankan data lama, ekspor dan migrasikan data ke MySQL/MariaDB secara terpisah, lalu verifikasi sebelum mengalihkan aplikasi ke database baru.
 
 ### Deploy ke Vercel dan Render
 
-- **Render**: Hubungkan repository GitHub atau gunakan Blueprint dari `render.yaml`. Service memakai direktori root `server`, `npm ci`, dan `npm start`. Tambahkan `DATABASE_URL` pada Environment di Render dengan connection string PostgreSQL Supabase; `DB_SSL=true` sudah didefinisikan di blueprint. SQLite maupun Persistent Disk tidak diperlukan.
-- **Vercel**: Impor repository dan atur **Root Directory** ke `client`. Vercel membangun frontend menggunakan `npm run build`; aturan di `client/vercel.json` meneruskan `/api/*` ke backend Render.
+- **Server pribadi**: Letakkan frontend dan backend pada server/domain yang dapat diakses pengguna. Konfigurasikan reverse proxy HTTPS untuk meneruskan `/api/` ke backend; jika memakai domain atau server berbeda, atur proxy frontend agar menunjuk ke backend tersebut.
+- **Render (opsional)**: Blueprint `render.yaml` menyiapkan backend. Atur `DB_HOST`, `DB_NAME`, `DB_USER`, dan `DB_PASSWORD` agar Render dapat menjangkau server MySQL. Database yang hanya bisa diakses dalam jaringan lokal tidak dapat dijangkau Render.
+- **Vercel**: Konfigurasi `client/vercel.json` yang ada masih mengarah ke backend Render lama. Untuk memakai server pribadi, ubah tujuan proxy tersebut ke alamat HTTPS backend yang dapat dijangkau Vercel. Backend yang hanya tersedia di jaringan lokal tidak dapat diakses Vercel.
 
-Domain backend pada `client/vercel.json` harus sama dengan domain service Render. Endpoint `/api/health` digunakan Render untuk memeriksa koneksi backend dan database. Setelah deploy, periksa log Render untuk pesan bahwa PostgreSQL berhasil diinisialisasi.
+Endpoint `/api/health` memeriksa koneksi backend dan database. Pastikan firewall server hanya membuka port yang diperlukan dan database hanya menerima koneksi dari host backend.
