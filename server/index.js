@@ -12,18 +12,24 @@ const PORT = process.env.PORT || 5000;
 const inkTypeByModel = [
   { inkType: 'Epson 664', models: ['L110', 'L120', 'L360'] },
   { inkType: 'Epson 003', models: ['L3110', 'L3210', 'L3250', 'L3251'] },
-  { inkType: 'Brother LC400 / LC77XL', models: ['MFC-J6710DW'] },
+  { inkType: 'Brother LC400 / LC77XL', models: ['MFC-J6710DW', 'LC400', 'LC77XL', 'J6710DW'] },
 ];
 
 function normalizeInkType(value) {
   const printer = String(value || '').trim();
-  const normalized = printer.toLowerCase().replace(/\s+/g, ' ');
-  const matchingType = inkTypeByModel.find(({ inkType, models }) =>
-    inkType.toLowerCase() === normalized ||
-    inkType.toLowerCase().endsWith(` ${normalized}`) ||
-    (/^\d{1,3}$/.test(normalized) && inkType.toLowerCase().endsWith(` ${normalized.padStart(3, '0')}`)) ||
-    models.some(model => new RegExp(`(^|[^a-z0-9])${model}([^a-z0-9]|$)`, 'i').test(printer))
-  );
+  if (!printer) return '';
+
+  const normalized = printer.toLowerCase().replace(/\s+/g, ' ').replace(/[_-]+/g, ' ').trim();
+  const matchingType = inkTypeByModel.find(({ inkType, models }) => {
+    const canonical = inkType.toLowerCase();
+    return (
+      canonical === normalized ||
+      canonical.endsWith(` ${normalized}`) ||
+      (/^\d{1,3}$/.test(normalized) && canonical.endsWith(` ${normalized.padStart(3, '0')}`)) ||
+      models.some(model => new RegExp(`(^|[^a-z0-9])${model.replace(/[-/\s]+/g, '[-\\s/]*')}([^a-z0-9]|$)`, 'i').test(printer)) ||
+      new RegExp(`(^|[^a-z0-9])${canonical.replace(/\s+/g, '[-\\s/]*')}([^a-z0-9]|$)`, 'i').test(printer)
+    );
+  });
 
   return matchingType ? matchingType.inkType : printer;
 }

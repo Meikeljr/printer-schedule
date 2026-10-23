@@ -50,7 +50,9 @@ const rosterColors = ['Hitam', 'Magenta', 'Biru', 'Kuning'];
 
 function normalizeRosterPrinter(value) {
   const printer = String(value || '').trim();
-  const normalized = printer.toLowerCase().replace(/\s+/g, ' ');
+  if (!printer) return '';
+
+  const normalized = printer.toLowerCase().replace(/\s+/g, ' ').replace(/[_-]+/g, ' ').trim();
 
   if (
     normalized === '003' ||
@@ -70,7 +72,13 @@ function normalizeRosterPrinter(value) {
 
   if (
     normalized === 'brother lc400 / lc77xl' ||
-    /mfc-j6710dw/i.test(printer)
+    normalized === 'brother lc400 lc77xl' ||
+    normalized === 'lc400' ||
+    normalized === 'lc77xl' ||
+    normalized === 'brother mfc j6710dw' ||
+    normalized === 'mfc j6710dw' ||
+    /(^|[^a-z0-9])mfc[- ]?j\s*6710dw([^a-z0-9]|$)/i.test(printer) ||
+    /(^|[^a-z0-9])lc(?:400|77xl)([^a-z0-9]|$)/i.test(printer)
   ) {
     return 'Brother LC400 / LC77XL';
   }
@@ -202,4 +210,5 @@ module.exports = {
   initDb,
   query,
   syncPrinterRoster,
+  normalizeRosterPrinter,
 };
