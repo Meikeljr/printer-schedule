@@ -70,6 +70,10 @@ function processRefillItem(item) {
   };
 }
 
+function formatDaysSinceRefill(daysSince) {
+  return daysSince > 60 ? `+${daysSince - 60}` : daysSince;
+}
+
 app.get('/api/health', async (req, res) => {
   try {
     await db.query('SELECT 1');
@@ -398,7 +402,7 @@ app.get('/api/refills/export-excel', async (req, res) => {
       'Jenis Tinta Printer': item.printer,
       Warna: item.warna,
       'Tanggal Isi Ulang Terakhir': item.tanggal_terakhir,
-      'Hari Sejak Isi Ulang': item.selisih_hari,
+      'Hari Sejak Isi Ulang': item.selisih_hari === null ? null : formatDaysSinceRefill(item.selisih_hari),
       Catatan: item.catatan || '-',
     }));
 

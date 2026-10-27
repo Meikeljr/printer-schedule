@@ -12,7 +12,7 @@ Aplikasi web berbasis **React, Node.js (Express), dan MySQL/MariaDB** untuk menc
 
 ## 🌟 Fitur Utama
 
-1. **Hari Sejak Isi Ulang**: Menampilkan hari sejak isi ulang untuk setiap warna tinta dengan status Aman (<30 hari), Menipis (30-60 hari), Kritis (>60 hari), atau Belum tercatat.
+1. **Hari Sejak Isi Ulang**: Menampilkan hari sejak isi ulang untuk setiap warna tinta dengan status Aman (<30 hari), Menipis (30-60 hari), Kritis (>60 hari), atau Belum tercatat. Setelah 60 hari, angka ditampilkan sebagai tambahan hari: hari ke-61 menjadi `+1`, hari ke-62 menjadi `+2`, dan seterusnya.
 2. **Daftar Pemilik Printer**: Daftar nama, departemen, jenis tinta, serta warna Hitam, Magenta, Biru, dan Kuning sesuai `Data_printer.xlsx` dimuat saat backend berjalan; tanggal awal kosong sampai tombol **"Isi Ulang"** ditekan.
 3. **Dashboard per Kelompok Tinta**: Menampilkan satu baris per kombinasi PIC, departemen, dan jenis tinta; tanggal setiap warna tetap terpisah dan bisa dilihat atau diperbarui pada detail.
 4. **Pembaruan Isi Ulang**: Tombol **"Isi Ulang"** memperbarui tanggal yang dipilih dan mencatat riwayat.

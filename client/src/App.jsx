@@ -53,6 +53,11 @@ function getDaysSinceRefill(value, today = new Date()) {
   return Math.floor((currentDate.getTime() - lastDate.getTime()) / 86400000);
 }
 
+function formatDaysSinceRefill(daysSince) {
+  if (daysSince > 60) return `+${daysSince - 60} hari`;
+  return `${daysSince} hari`;
+}
+
 function getOldestDaysSinceRefill(items) {
   const ages = items
     .map(item => getDaysSinceRefill(item.tanggal_terakhir))
@@ -625,11 +630,11 @@ export default function App() {
                               <span
                                 key={item.id}
                                 className={`refill-age-badge ${status.className} ${getColorClass(item.warna)}`}
-                                aria-label={`${item.warna}: ${daysSince === null ? 'belum tercatat' : `${daysSince} hari`}, ${status.label}`}
+                                aria-label={`${item.warna}: ${daysSince === null ? 'belum tercatat' : formatDaysSinceRefill(daysSince)}, ${status.label}`}
                                 title={`${item.warna} · ${status.label}`}
                               >
                                 <span className="ink-dot" aria-hidden="true"></span>
-                                <span>{daysSince === null ? 'Belum tercatat' : `${daysSince} hari`}</span>
+                                <span>{daysSince === null ? 'Belum tercatat' : formatDaysSinceRefill(daysSince)}</span>
                                 <small>{status.label}</small>
                               </span>
                             );
@@ -667,7 +672,7 @@ export default function App() {
                                       <span className={`ink-badge ${getColorClass(item.warna)}`}><span className="ink-dot"></span>{item.warna}</span>
                                     </div>
                                     <div className="color-detail-data">
-                                      <span><Clock3 size={14} /> {daysSince === null ? 'Belum ada catatan isi ulang' : `${daysSince} hari sejak isi ulang terakhir`}</span>
+                                      <span><Clock3 size={14} /> {daysSince === null ? 'Belum ada catatan isi ulang' : `${formatDaysSinceRefill(daysSince)} sejak isi ulang terakhir`}</span>
                                       <span className={`refill-status-label ${status.className}`}>{status.label}</span>
                                     </div>
                                     <div className="action-group detail-actions">
