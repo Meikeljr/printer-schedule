@@ -672,7 +672,14 @@ export default function App() {
                                       <span className={`ink-badge ${getColorClass(item.warna)}`}><span className="ink-dot"></span>{item.warna}</span>
                                     </div>
                                     <div className="color-detail-data">
-                                      <span><Clock3 size={14} /> {daysSince === null ? 'Belum ada catatan isi ulang' : `${formatDaysSinceRefill(daysSince)} sejak isi ulang terakhir`}</span>
+                                      <span>
+                                        <Clock3 size={14} />{' '}
+                                        {daysSince === null
+                                          ? 'Belum ada catatan isi ulang'
+                                          : daysSince > 60
+                                            ? `${formatDaysSinceRefill(daysSince)} dari batas pengingat isi ulang`
+                                            : `${daysSince} hari sejak isi ulang terakhir`}
+                                      </span>
                                       <span className={`refill-status-label ${status.className}`}>{status.label}</span>
                                     </div>
                                     <div className="action-group detail-actions">
