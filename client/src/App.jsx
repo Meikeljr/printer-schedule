@@ -78,6 +78,12 @@ function formatLocalDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function formatHistoryDate(value) {
+  const date = parseLocalDate(value);
+  if (!date) return value || '-';
+  return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+}
+
 function getLatestUpdateDate(items) {
   return items.reduce((latest, item) => {
     if (!item.updated_at) return latest;
@@ -1017,8 +1023,8 @@ export default function App() {
                   return (
                     <div key={h.id || `${h.tanggal_refill}-${i}`} className="history-item">
                       <div className="history-entry">
-                        <strong>{h.tanggal_refill}</strong>
-                        <span>Petugas: {h.nama || editingItem.nama}</span>
+                        <strong>{formatHistoryDate(h.tanggal_refill)}</strong>
+                        <span>Nama: {h.nama || editingItem.nama}</span>
                       </div>
                       <span className="history-interval">
                         {interval === null ? 'Catatan pertama' : `${interval} hari dari sebelumnya`}
