@@ -15,7 +15,7 @@ Aplikasi web berbasis **React, Node.js (Express), dan PostgreSQL (Supabase)** un
 1. **Hari Sejak Isi Ulang**: Menampilkan hari sejak isi ulang untuk setiap warna tinta dengan status Aman (<30 hari), Menipis (30-60 hari), Kritis (>60 hari), atau Belum tercatat.
 2. **Daftar Pemilik Printer**: Daftar nama, departemen, jenis tinta, serta warna Hitam, Magenta, Biru, dan Kuning sesuai `Data_printer.xlsx` dimuat saat backend berjalan; tanggal awal kosong sampai tombol **"Isi Ulang"** ditekan.
 3. **Dashboard per Kelompok Tinta**: Menampilkan satu baris per kombinasi PIC, departemen, dan jenis tinta; tanggal setiap warna tetap terpisah dan bisa dilihat atau diperbarui pada detail.
-4. **Pembaruan Isi Ulang**: Tombol **"Isi Ulang"** memperbarui tanggal yang dipilih dan mencatat riwayat.
+4. **Riwayat Isi Ulang**: Setiap perubahan tanggal isi ulang disimpan per warna tinta. Detail riwayat menampilkan urutan tanggal, jeda dari pengisian sebelumnya, dan rata-rata jeda antar pengisian; menyimpan tanggal yang sama tidak membuat catatan duplikat.
 5. **Impor Data Excel**: Pengunggahan data pengisian dengan format `ID, Nama, Departement, Printer, Jenis Tinta, Tanggal`; impor hanya memperbarui tanggal dan riwayat data printer yang sudah terdaftar, tidak menambahkan nama/printer baru. Baris roster tanpa warna atau data yang tidak cocok akan dilewati.
 6. **Ekspor Laporan Excel**: Mengunduh detail seluruh warna dalam format `.xlsx`.
 7. **Pencarian, Filter & Pengurutan**: Filter berdasarkan kata kunci, Departemen, jenis tinta, dan warna; urutkan berdasarkan nama PIC atau usia isi ulang. Kartu tinta lebih dari 60 hari menjadi filter cepat.

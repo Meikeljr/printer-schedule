@@ -28,6 +28,11 @@ function normalizeInkType(value) {
   return matchingType ? matchingType.inkType : printer;
 }
 
+function getDateKey(value) {
+  if (!value) return null;
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
 app.use(express.json());
 
 // Konfigurasi Multer untuk Unggah File Excel
@@ -177,12 +182,13 @@ app.put('/api/refills/:id', async (req, res) => {
     `;
     await db.query(sql, [newName, newDept, newPrinter, newWarna, newDate, newCatatan, id]);
 
-    // Tambah entri ke riwayat jika tanggal berubah atau diperbarui
-    await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
-      id,
-      updated_by || newName,
-      newDate,
-    ]);
+    if (getDateKey(oldData.tanggal_terakhir) !== getDateKey(newDate)) {
+      await db.query('INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)', [
+        id,
+        updated_by || newName,
+        newDate,
+      ]);
+    }
 
     res.json({
       success: true,
@@ -275,7 +281,7 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
     let countUpdated = 0;
     let countSkipped = 0;
     const existingRows = await db.query(
-      'SELECT id, nama, departement, printer, warna FROM printer_refills'
+      'SELECT id, nama, departement, printer, warna, tanggal_terakhir FROM printer_refills'
     );
     const refillRowsByKey = new Map();
     const createRefillKey = (nama, departement, printer, warna) => [
@@ -354,10 +360,12 @@ app.post('/api/refills/import-excel', upload.single('file'), async (req, res) =>
            WHERE id = $3`,
           [tanggal, catatan, matchingRow.id]
         );
+        if (getDateKey(matchingRow.tanggal_terakhir) === getDateKey(tanggal)) continue;
         await db.query(
           'INSERT INTO refill_history (refill_id, nama, tanggal_refill) VALUES ($1, $2, $3)',
           [matchingRow.id, nama, tanggal]
         );
+        matchingRow.tanggal_terakhir = tanggal;
       }
       countUpdated++;
     }

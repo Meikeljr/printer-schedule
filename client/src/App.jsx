@@ -46,6 +46,13 @@ function parseLocalDate(value) {
   return new Date(year, month - 1, day);
 }
 
+function getDaysBetweenDates(earlierValue, laterValue) {
+  const earlierDate = parseLocalDate(earlierValue);
+  const laterDate = parseLocalDate(laterValue);
+  if (!earlierDate || !laterDate) return null;
+  return Math.floor((laterDate.getTime() - earlierDate.getTime()) / 86400000);
+}
+
 function getDaysSinceRefill(value, today = new Date()) {
   const lastDate = parseLocalDate(value);
   if (!lastDate) return null;
@@ -384,6 +391,19 @@ export default function App() {
   const pageCount = Math.max(1, Math.ceil(filteredGroups.length / pageSize));
   const displayedPage = Math.min(currentPage, pageCount);
   const pageGroups = filteredGroups.slice((displayedPage - 1) * pageSize, displayedPage * pageSize);
+  const orderedHistory = [...historyData].sort((itemA, itemB) => (
+    (parseLocalDate(itemB.tanggal_refill)?.getTime() ?? 0) -
+    (parseLocalDate(itemA.tanggal_refill)?.getTime() ?? 0)
+  ));
+  const refillIntervals = orderedHistory.slice(0, -1)
+    .map((item, index) => getDaysBetweenDates(
+      orderedHistory[index + 1].tanggal_refill,
+      item.tanggal_refill
+    ))
+    .filter(days => days !== null && days > 0);
+  const averageRefillInterval = refillIntervals.length
+    ? refillIntervals.reduce((total, days) => total + days, 0) / refillIntervals.length
+    : null;
 
   const toggleGroup = (key) => {
     setExpandedGroups(current => ({ ...current, [key]: !current[key] }));
@@ -967,22 +987,45 @@ export default function App() {
               <strong>PIC:</strong> {editingItem.nama} ({editingItem.departement})
             </div>
 
+            {historyData.length > 0 && (
+              <div className="history-summary">
+                <article>
+                  <span>Total catatan pengisian</span>
+                  <strong>{historyData.length}</strong>
+                </article>
+                <article>
+                  <span>Rata-rata jeda antar pengisian</span>
+                  <strong>
+                    {averageRefillInterval === null
+                      ? 'Belum cukup data'
+                      : `${averageRefillInterval.toLocaleString('id-ID', { maximumFractionDigits: 1 })} hari`}
+                  </strong>
+                </article>
+              </div>
+            )}
+
             <div className="history-list">
-              {historyData.length === 0 ? (
-                <div style={{ padding: '16px', textCenter: 'center', color: 'var(--text-muted)' }}>
+              {orderedHistory.length === 0 ? (
+                <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   Belum ada riwayat pengisian ulang.
                 </div>
               ) : (
-                historyData.map((h, i) => (
-                  <div key={i} className="history-item">
-                    <span>
-                      <strong>Tgl:</strong> {h.tanggal_refill}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)' }}>
-                      Petugas: {h.nama || editingItem.nama}
-                    </span>
-                  </div>
-                ))
+                orderedHistory.map((h, i) => {
+                  const interval = i < orderedHistory.length - 1
+                    ? getDaysBetweenDates(orderedHistory[i + 1].tanggal_refill, h.tanggal_refill)
+                    : null;
+                  return (
+                    <div key={h.id || `${h.tanggal_refill}-${i}`} className="history-item">
+                      <div className="history-entry">
+                        <strong>{h.tanggal_refill}</strong>
+                        <span>Petugas: {h.nama || editingItem.nama}</span>
+                      </div>
+                      <span className="history-interval">
+                        {interval === null ? 'Catatan pertama' : `${interval} hari dari sebelumnya`}
+                      </span>
+                    </div>
+                  );
+                })
               )}
             </div>
 
