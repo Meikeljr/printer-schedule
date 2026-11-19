@@ -89,6 +89,8 @@ DB_SSL=true
 
 Ganti placeholder dengan connection string dari Supabase. Backend membutuhkan koneksi PostgreSQL keluar; `DB_SSL=true` mengaktifkan TLS. Struktur tabel juga tersedia di `server/schema.sql`. Saat backend dijalankan, daftar printer dari `server/printer_roster.json` disinkronkan tanpa menghapus catatan yang sudah ada.
 
+Backend menjalankan `SELECT 1` setiap 72 jam selama proses backend tetap hidup. Interval dimulai kembali ketika backend restart. Ini bukan jaminan agar Supabase Free tidak menjeda proyek: timer berhenti jika backend tidak berjalan, dan Supabase tidak menjamin query keep-alive mencegah jeda otomatis.
+
 ### Deploy ke Vercel dan Render
 
 - **Render**: Hubungkan repository GitHub atau gunakan Blueprint dari `render.yaml`. Service memakai direktori root `server`, `npm ci`, dan `npm start`. Tambahkan `DATABASE_URL` pada Environment di Render dengan connection string PostgreSQL Supabase; `DB_SSL=true` sudah didefinisikan di blueprint. SQLite maupun Persistent Disk tidak diperlukan.

@@ -3,6 +3,9 @@ const printerRoster = require('./printer_roster.json');
 require('dotenv').config();
 
 let pool = null;
+let keepAliveTimer = null;
+
+const keepAliveIntervalMs = 3 * 24 * 60 * 60 * 1000;
 
 const connectionString = process.env.DATABASE_URL?.trim();
 const dbConfig = {
@@ -167,8 +170,21 @@ async function initDb() {
 
     const added = await syncPrinterRoster();
     if (added) console.log(`🌱 ${added} data printer baru ditambahkan.`);
+    keepAliveTimer = setInterval(async () => {
+      try {
+        await query('SELECT 1');
+        console.log('✅ Query keep-alive PostgreSQL berhasil dijalankan.');
+      } catch (error) {
+        console.error('❌ Query keep-alive PostgreSQL gagal:', error);
+      }
+    }, keepAliveIntervalMs);
+    keepAliveTimer.unref();
     console.log('✅ PostgreSQL berhasil diinisialisasi.');
   } catch (error) {
+    if (keepAliveTimer) {
+      clearInterval(keepAliveTimer);
+      keepAliveTimer = null;
+    }
     await pool.end();
     pool = null;
     throw new Error(`Gagal menginisialisasi PostgreSQL: ${error.message}`);
