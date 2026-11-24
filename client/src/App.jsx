@@ -604,6 +604,14 @@ export default function App() {
             <Download size={18} /> Ekspor Excel
           </a>
           <button
+            className="btn btn-secondary"
+            onClick={picEditMode ? cancelPicEditMode : openHeaderPicEditModal}
+            disabled={savingPicName}
+          >
+            {picEditMode ? <X size={18} /> : <Edit2 size={18} />}
+            {picEditMode ? 'Batal Edit' : 'Edit'}
+          </button>
+          <button
             className="btn btn-primary"
             onClick={() => {
               resetForm();
@@ -611,14 +619,6 @@ export default function App() {
             }}
           >
             <Plus size={18} /> Tambah Data
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={picEditMode ? cancelPicEditMode : openHeaderPicEditModal}
-            disabled={savingPicName}
-          >
-            {picEditMode ? <X size={18} /> : <Edit2 size={18} />}
-            {picEditMode ? 'Batal Edit' : 'Edit PIC'}
           </button>
           {picEditMode && (
             <button
