@@ -611,15 +611,6 @@ export default function App() {
             {picEditMode ? <X size={18} /> : <Edit2 size={18} />}
             {picEditMode ? 'Batal Edit' : 'Edit'}
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              resetForm();
-              setShowFormModal(true);
-            }}
-          >
-            <Plus size={18} /> Tambah Data
-          </button>
           {picEditMode && (
             <button
               className="btn btn-primary"
@@ -629,6 +620,15 @@ export default function App() {
               {savingPicName ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
           )}
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              resetForm();
+              setShowFormModal(true);
+            }}
+          >
+            <Plus size={18} /> Tambah Data
+          </button>
         </div>
       </header>
 
