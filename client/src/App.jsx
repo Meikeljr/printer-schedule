@@ -793,16 +793,25 @@ export default function App() {
                       </td>
                       <td>
                         {picEditMode ? (
-                          <input
-                            type="text"
-                            className="pic-inline-input pic-inline-input-compact"
+                          <select
+                            className="pic-inline-select"
                             value={picDraftDepartments[group.key] ?? group.departement}
                             onChange={(event) => setPicDraftDepartments(current => ({
                               ...current,
                               [group.key]: event.target.value,
                             }))}
                             aria-label={`Departemen untuk ${group.nama}`}
-                          />
+                          >
+                            {picDraftDepartments[group.key] &&
+                              !departments.some(department => department === (picDraftDepartments[group.key] ?? group.departement)) && (
+                                <option value={picDraftDepartments[group.key]}>
+                                  {picDraftDepartments[group.key]} (data lama)
+                                </option>
+                              )}
+                            {departments.map(department => (
+                              <option key={department} value={department}>{department}</option>
+                            ))}
+                          </select>
                         ) : (
                           <span className="department-cell">
                             <Building size={15} /> {group.departement}
