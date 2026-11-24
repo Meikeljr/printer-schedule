@@ -130,6 +130,8 @@ export default function App() {
   const [savingPicName, setSavingPicName] = useState(false);
   const [picEditMode, setPicEditMode] = useState(false);
   const [picDraftNames, setPicDraftNames] = useState({});
+  const [picDraftDepartments, setPicDraftDepartments] = useState({});
+  const [picDraftPrinters, setPicDraftPrinters] = useState({});
   const [editingItem, setEditingItem] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [refillItem, setRefillItem] = useState(null);
@@ -338,12 +340,16 @@ export default function App() {
       return;
     }
     setPicDraftNames(Object.fromEntries(groups.map(group => [group.key, group.nama])));
+    setPicDraftDepartments(Object.fromEntries(groups.map(group => [group.key, group.departement])));
+    setPicDraftPrinters(Object.fromEntries(groups.map(group => [group.key, group.printer])));
     setPicEditMode(true);
   };
 
   const cancelPicEditMode = () => {
     setPicEditMode(false);
     setPicDraftNames({});
+    setPicDraftDepartments({});
+    setPicDraftPrinters({});
   };
 
   const savePicEditMode = async () => {
@@ -352,10 +358,22 @@ export default function App() {
       let updatedCount = 0;
       for (const group of groups) {
         const draftName = String(picDraftNames[group.key] || '').trim();
+        const draftDepartment = String(picDraftDepartments[group.key] || '').trim();
+        const draftPrinter = String(picDraftPrinters[group.key] || '').trim();
         if (!draftName) {
           throw new Error(`Nama PIC tidak boleh kosong untuk ${group.departement || 'departemen'}.`);
         }
-        if (draftName === group.nama) continue;
+        if (!draftDepartment) {
+          throw new Error(`Departemen tidak boleh kosong untuk ${draftName}.`);
+        }
+        if (!draftPrinter) {
+          throw new Error(`Jenis tinta tidak boleh kosong untuk ${draftName}.`);
+        }
+        if (
+          draftName === group.nama &&
+          draftDepartment === group.departement &&
+          draftPrinter === group.printer
+        ) continue;
 
         const response = await fetch('/api/pic/update-name', {
           method: 'PUT',
@@ -365,6 +383,8 @@ export default function App() {
             departement: group.departement,
             printer: group.printer,
             nama: draftName,
+            newDepartement: draftDepartment,
+            newPrinter: draftPrinter,
           }),
         });
         const data = await response.json();
@@ -772,11 +792,46 @@ export default function App() {
                         )}
                       </td>
                       <td>
-                        <span className="department-cell">
-                          <Building size={15} /> {group.departement}
-                        </span>
+                        {picEditMode ? (
+                          <input
+                            type="text"
+                            className="pic-inline-input pic-inline-input-compact"
+                            value={picDraftDepartments[group.key] ?? group.departement}
+                            onChange={(event) => setPicDraftDepartments(current => ({
+                              ...current,
+                              [group.key]: event.target.value,
+                            }))}
+                            aria-label={`Departemen untuk ${group.nama}`}
+                          />
+                        ) : (
+                          <span className="department-cell">
+                            <Building size={15} /> {group.departement}
+                          </span>
+                        )}
                       </td>
-                      <td><span className="printer-type">{group.printer}</span></td>
+                      <td>
+                        {picEditMode ? (
+                          <select
+                            className="pic-inline-select"
+                            value={picDraftPrinters[group.key] ?? group.printer}
+                            onChange={(event) => setPicDraftPrinters(current => ({
+                              ...current,
+                              [group.key]: event.target.value,
+                            }))}
+                            aria-label={`Jenis tinta untuk ${group.nama}`}
+                          >
+                            {picDraftPrinters[group.key] &&
+                              !inkTypeOptions.some(option => option.value === (picDraftPrinters[group.key] ?? group.printer)) && (
+                                <option value={picDraftPrinters[group.key]}>{picDraftPrinters[group.key]} (data lama)</option>
+                              )}
+                            {inkTypeOptions.map(option => (
+                              <option key={option.value} value={option.value}>{option.value}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="printer-type">{group.printer}</span>
+                        )}
+                      </td>
                       <td>
                         <div className="color-chip-list">
                           {group.visibleItems.map((item) => (

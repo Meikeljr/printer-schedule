@@ -214,12 +214,14 @@ app.delete('/api/refills/:id', async (req, res) => {
 // Perbarui nama PIC untuk seluruh warna dalam satu kelompok printer
 app.put('/api/pic/update-name', async (req, res) => {
   try {
-    const { oldNama, departement, printer, nama } = req.body;
+    const { oldNama, departement, printer, nama, newDepartement, newPrinter } = req.body;
     const newName = String(nama || '').trim();
     const oldName = String(oldNama || '').trim();
     const normalizedPrinter = normalizeInkType(printer);
+    const updatedDepartment = String(newDepartement || departement || '').trim();
+    const updatedPrinter = normalizeInkType(newPrinter || printer);
 
-    if (!oldName || !departement || !normalizedPrinter || !newName) {
+    if (!oldName || !departement || !normalizedPrinter || !newName || !updatedDepartment || !updatedPrinter) {
       return res.status(400).json({
         success: false,
         message: 'Nama PIC lama, nama baru, departemen, dan jenis tinta wajib diisi!',
@@ -237,8 +239,8 @@ app.put('/api/pic/update-name', async (req, res) => {
 
     for (const row of rows) {
       await db.query(
-        'UPDATE printer_refills SET nama = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        [newName, row.id]
+        'UPDATE printer_refills SET nama = $1, departement = $2, printer = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+        [newName, updatedDepartment, updatedPrinter, row.id]
       );
       await db.query(
         'UPDATE refill_history SET nama = $1 WHERE refill_id = $2',
