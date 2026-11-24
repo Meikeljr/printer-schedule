@@ -330,6 +330,16 @@ export default function App() {
     setShowPicEditModal(true);
   };
 
+  const openHeaderPicEditModal = () => {
+    if (groups.length === 0) {
+      alert('Belum ada data PIC yang dapat diedit.');
+      return;
+    }
+    setPicEditGroup(null);
+    setPicEditName('');
+    setShowPicEditModal(true);
+  };
+
   const savePicName = async (event) => {
     event.preventDefault();
     const newName = picEditName.trim();
@@ -538,6 +548,12 @@ export default function App() {
           >
             <Plus size={18} /> Tambah Data
           </button>
+          <button
+            className="btn btn-secondary"
+            onClick={openHeaderPicEditModal}
+          >
+            <Edit2 size={18} /> Edit PIC
+          </button>
         </div>
       </header>
 
@@ -741,14 +757,6 @@ export default function App() {
                             Detail
                           </button>
                           <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => openPicEditModal(group)}
-                            title={`Edit nama PIC ${group.nama}`}
-                          >
-                            <Edit2 size={15} />
-                            Edit PIC
-                          </button>
-                          <button
                             className="btn btn-danger btn-sm"
                             onClick={() => deletePicGroup(group)}
                             title={`Hapus PIC ${group.nama} beserta seluruh warna tinta`}
@@ -883,7 +891,7 @@ export default function App() {
         </div>
       )}
 
-      {showPicEditModal && picEditGroup && (
+      {showPicEditModal && (
         <div className="modal-overlay">
           <div className="modal-content pic-edit-modal" role="dialog" aria-modal="true" aria-labelledby="pic-edit-modal-title">
             <div className="modal-header">
@@ -892,12 +900,37 @@ export default function App() {
                 <X size={20} />
               </button>
             </div>
-            <div className="refill-context">
-              <strong>{picEditGroup.nama}</strong>
-              <span>{picEditGroup.departement}</span>
-              <span>{picEditGroup.printer}</span>
-            </div>
             <form onSubmit={savePicName}>
+              {!picEditGroup ? (
+                <div className="form-group">
+                  <label htmlFor="pic-edit-group">Pilih PIC</label>
+                  <select
+                    id="pic-edit-group"
+                    className="form-input"
+                    required
+                    value=""
+                    onChange={(event) => {
+                      const group = groups.find(item => item.key === event.target.value);
+                      if (!group) return;
+                      setPicEditGroup(group);
+                      setPicEditName(group.nama);
+                    }}
+                  >
+                    <option value="" disabled>Pilih nama PIC dan kelompok tinta</option>
+                    {groups.map((group) => (
+                      <option key={group.key} value={group.key}>
+                        {group.nama} · {group.departement} · {group.printer}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="refill-context">
+                  <strong>{picEditGroup.nama}</strong>
+                  <span>{picEditGroup.departement}</span>
+                  <span>{picEditGroup.printer}</span>
+                </div>
+              )}
               <div className="form-group">
                 <label htmlFor="pic-edit-name">Nama PIC baru</label>
                 <input
