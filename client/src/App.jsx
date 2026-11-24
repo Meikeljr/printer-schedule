@@ -128,6 +128,8 @@ export default function App() {
   const [picEditGroup, setPicEditGroup] = useState(null);
   const [picEditName, setPicEditName] = useState('');
   const [savingPicName, setSavingPicName] = useState(false);
+  const [picEditMode, setPicEditMode] = useState(false);
+  const [picDraftNames, setPicDraftNames] = useState({});
   const [editingItem, setEditingItem] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [refillItem, setRefillItem] = useState(null);
@@ -335,9 +337,51 @@ export default function App() {
       alert('Belum ada data PIC yang dapat diedit.');
       return;
     }
-    setPicEditGroup(null);
-    setPicEditName('');
-    setShowPicEditModal(true);
+    setPicDraftNames(Object.fromEntries(groups.map(group => [group.key, group.nama])));
+    setPicEditMode(true);
+  };
+
+  const cancelPicEditMode = () => {
+    setPicEditMode(false);
+    setPicDraftNames({});
+  };
+
+  const savePicEditMode = async () => {
+    setSavingPicName(true);
+    try {
+      let updatedCount = 0;
+      for (const group of groups) {
+        const draftName = String(picDraftNames[group.key] || '').trim();
+        if (!draftName) {
+          throw new Error(`Nama PIC tidak boleh kosong untuk ${group.departement || 'departemen'}.`);
+        }
+        if (draftName === group.nama) continue;
+
+        const response = await fetch('/api/pic/update-name', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            oldNama: group.nama,
+            departement: group.departement,
+            printer: group.printer,
+            nama: draftName,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || `Gagal mengubah nama PIC ${group.nama}.`);
+        }
+        updatedCount++;
+      }
+      await fetchData();
+      setPicEditMode(false);
+      setPicDraftNames({});
+      alert(updatedCount ? `${updatedCount} nama PIC berhasil diperbarui.` : 'Tidak ada perubahan nama PIC.');
+    } catch (err) {
+      alert('Gagal menyimpan perubahan PIC: ' + err.message);
+    } finally {
+      setSavingPicName(false);
+    }
   };
 
   const savePicName = async (event) => {
@@ -550,10 +594,21 @@ export default function App() {
           </button>
           <button
             className="btn btn-secondary"
-            onClick={openHeaderPicEditModal}
+            onClick={picEditMode ? cancelPicEditMode : openHeaderPicEditModal}
+            disabled={savingPicName}
           >
-            <Edit2 size={18} /> Edit PIC
+            {picEditMode ? <X size={18} /> : <Edit2 size={18} />}
+            {picEditMode ? 'Batal Edit' : 'Edit PIC'}
           </button>
+          {picEditMode && (
+            <button
+              className="btn btn-primary"
+              onClick={savePicEditMode}
+              disabled={savingPicName}
+            >
+              {savingPicName ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -698,10 +753,23 @@ export default function App() {
                     <tr className="group-row">
                       <td style={{ fontWeight: 700, color: '#334155' }}>{(displayedPage - 1) * pageSize + idx + 1}</td>
                       <td>
-                        <div className="pic-cell">
-                          <User size={16} />
-                          <strong>{group.nama}</strong>
-                        </div>
+                        {picEditMode ? (
+                          <input
+                            type="text"
+                            className="pic-inline-input"
+                            value={picDraftNames[group.key] ?? group.nama}
+                            onChange={(event) => setPicDraftNames(current => ({
+                              ...current,
+                              [group.key]: event.target.value,
+                            }))}
+                            aria-label={`Nama PIC untuk ${group.departement}`}
+                          />
+                        ) : (
+                          <div className="pic-cell">
+                            <User size={16} />
+                            <strong>{group.nama}</strong>
+                          </div>
+                        )}
                       </td>
                       <td>
                         <span className="department-cell">
@@ -756,14 +824,16 @@ export default function App() {
                             {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                             Detail
                           </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => deletePicGroup(group)}
-                            title={`Hapus PIC ${group.nama} beserta seluruh warna tinta`}
-                          >
-                            <Trash2 size={15} />
-                            Hapus
-                          </button>
+                          {picEditMode && (
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => deletePicGroup(group)}
+                              title={`Hapus PIC ${group.nama} beserta seluruh warna tinta`}
+                            >
+                              <Trash2 size={15} />
+                              Hapus
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
