@@ -211,6 +211,89 @@ app.delete('/api/refills/:id', async (req, res) => {
   }
 });
 
+// Perbarui nama PIC untuk seluruh warna dalam satu kelompok printer
+app.put('/api/pic/update-name', async (req, res) => {
+  try {
+    const { oldNama, departement, printer, nama } = req.body;
+    const newName = String(nama || '').trim();
+    const oldName = String(oldNama || '').trim();
+    const normalizedPrinter = normalizeInkType(printer);
+
+    if (!oldName || !departement || !normalizedPrinter || !newName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nama PIC lama, nama baru, departemen, dan jenis tinta wajib diisi!',
+      });
+    }
+
+    const rows = await db.query(
+      'SELECT id FROM printer_refills WHERE nama = $1 AND departement = $2 AND printer = $3',
+      [oldName, departement, normalizedPrinter]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Kelompok PIC tidak ditemukan.' });
+    }
+
+    for (const row of rows) {
+      await db.query(
+        'UPDATE printer_refills SET nama = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [newName, row.id]
+      );
+      await db.query(
+        'UPDATE refill_history SET nama = $1 WHERE refill_id = $2',
+        [newName, row.id]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Nama PIC berhasil diubah menjadi ${newName} untuk ${rows.length} warna tinta.`,
+      updated: rows.length,
+    });
+  } catch (err) {
+    console.error('Error PUT /api/pic/update-name:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Hapus seluruh warna dalam satu kelompok PIC/jenis tinta
+app.delete('/api/pic/group', async (req, res) => {
+  try {
+    const { nama, departement, printer } = req.body;
+    const normalizedPrinter = normalizeInkType(printer);
+
+    if (!nama || !departement || !normalizedPrinter) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nama PIC, departemen, dan jenis tinta wajib diisi!',
+      });
+    }
+
+    const rows = await db.query(
+      'SELECT id FROM printer_refills WHERE nama = $1 AND departement = $2 AND printer = $3',
+      [nama, departement, normalizedPrinter]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Kelompok PIC tidak ditemukan.' });
+    }
+
+    for (const row of rows) {
+      await db.query('DELETE FROM printer_refills WHERE id = $1', [row.id]);
+    }
+
+    res.json({
+      success: true,
+      message: `Kelompok PIC ${nama} beserta ${rows.length} warna tinta berhasil dihapus!`,
+      deleted: rows.length,
+    });
+  } catch (err) {
+    console.error('Error DELETE /api/pic/group:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // 5. GET /api/history/:refill_id - Riwayat Isi Ulang Printer
 app.get('/api/history/:refill_id', async (req, res) => {
   try {

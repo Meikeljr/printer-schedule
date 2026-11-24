@@ -124,6 +124,10 @@ export default function App() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showPicEditModal, setShowPicEditModal] = useState(false);
+  const [picEditGroup, setPicEditGroup] = useState(null);
+  const [picEditName, setPicEditName] = useState('');
+  const [savingPicName, setSavingPicName] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [refillItem, setRefillItem] = useState(null);
@@ -171,19 +175,20 @@ export default function App() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (!showFormModal && !showImportModal && !showHistoryModal && !refillItem) return undefined;
+    if (!showFormModal && !showImportModal && !showHistoryModal && !showPicEditModal && !refillItem) return undefined;
 
     const closeOnEscape = (event) => {
       if (event.key !== 'Escape') return;
       setShowFormModal(false);
       setShowImportModal(false);
       setShowHistoryModal(false);
+      setShowPicEditModal(false);
       setRefillItem(null);
     };
 
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [showFormModal, showImportModal, showHistoryModal, refillItem]);
+  }, [showFormModal, showImportModal, showHistoryModal, showPicEditModal, refillItem]);
 
   // Handle Create / Update Data
   const handleSubmitForm = async (e) => {
@@ -317,6 +322,68 @@ export default function App() {
       catatan: item.catatan || '',
     });
     setShowFormModal(true);
+  };
+
+  const openPicEditModal = (group) => {
+    setPicEditGroup(group);
+    setPicEditName(group.nama);
+    setShowPicEditModal(true);
+  };
+
+  const savePicName = async (event) => {
+    event.preventDefault();
+    const newName = picEditName.trim();
+    if (!picEditGroup || !newName) return;
+
+    setSavingPicName(true);
+    try {
+      const response = await fetch('/api/pic/update-name', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oldNama: picEditGroup.nama,
+          departement: picEditGroup.departement,
+          printer: picEditGroup.printer,
+          nama: newName,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Gagal mengubah nama PIC.');
+      }
+      setShowPicEditModal(false);
+      setPicEditGroup(null);
+      await fetchData();
+      alert(data.message);
+    } catch (err) {
+      alert('Gagal mengubah nama PIC: ' + err.message);
+    } finally {
+      setSavingPicName(false);
+    }
+  };
+
+  const deletePicGroup = async (group) => {
+    if (!window.confirm(`Hapus PIC "${group.nama}" beserta seluruh warna tinta untuk ${group.printer}?`)) return;
+
+    try {
+      const response = await fetch('/api/pic/group', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: group.nama,
+          departement: group.departement,
+          printer: group.printer,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Gagal menghapus kelompok PIC.');
+      }
+      await fetchData();
+      alert(data.message);
+    } catch (err) {
+      alert('Gagal menghapus kelompok PIC: ' + err.message);
+    }
   };
 
   const resetForm = () => {
@@ -673,6 +740,22 @@ export default function App() {
                             {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                             Detail
                           </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openPicEditModal(group)}
+                            title={`Edit nama PIC ${group.nama}`}
+                          >
+                            <Edit2 size={15} />
+                            Edit PIC
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => deletePicGroup(group)}
+                            title={`Hapus PIC ${group.nama} beserta seluruh warna tinta`}
+                          >
+                            <Trash2 size={15} />
+                            Hapus
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -793,6 +876,47 @@ export default function App() {
                 <button type="button" className="btn btn-secondary" onClick={() => setRefillItem(null)}>Batal</button>
                 <button type="submit" className="btn btn-primary" disabled={savingRefill}>
                   {savingRefill ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPicEditModal && picEditGroup && (
+        <div className="modal-overlay">
+          <div className="modal-content pic-edit-modal" role="dialog" aria-modal="true" aria-labelledby="pic-edit-modal-title">
+            <div className="modal-header">
+              <h2 id="pic-edit-modal-title">Edit Nama PIC</h2>
+              <button className="close-btn" onClick={() => setShowPicEditModal(false)} aria-label="Tutup">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="refill-context">
+              <strong>{picEditGroup.nama}</strong>
+              <span>{picEditGroup.departement}</span>
+              <span>{picEditGroup.printer}</span>
+            </div>
+            <form onSubmit={savePicName}>
+              <div className="form-group">
+                <label htmlFor="pic-edit-name">Nama PIC baru</label>
+                <input
+                  id="pic-edit-name"
+                  type="text"
+                  className="form-input"
+                  required
+                  value={picEditName}
+                  onChange={(event) => setPicEditName(event.target.value)}
+                  placeholder="Masukkan nama PIC"
+                  autoFocus
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowPicEditModal(false)}>
+                  Batal
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={savingPicName}>
+                  {savingPicName ? 'Menyimpan...' : 'Simpan Nama PIC'}
                 </button>
               </div>
             </form>

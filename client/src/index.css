@@ -883,6 +883,11 @@ body {
   gap: 6px;
 }
 
+.group-row > td:last-child .action-group {
+  flex-wrap: wrap;
+  min-width: 190px;
+}
+
 .detail-row td {
   padding: 0 !important;
   background: #f8fafc;
